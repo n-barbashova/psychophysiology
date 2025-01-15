@@ -129,52 +129,138 @@ for ID in IDs:
         data_rest3. reset_index(inplace=True, drop=True)
 
         # countdown 4
-        index = data_rest3['start'].tolist().index('start')  # +40
+        index = data_rest3['start'].tolist().index('start')   +40
         data_tmp_4 = data_rest3.iloc[index:]  # from the index to the end of the df
         data_tmp_4.reset_index(inplace=True, drop=True)  # make the row start with 0 again
         data_4 = data_tmp_4.iloc[0:120400]  # get 3rd countdown
         # check event codes seen at the end -
         data_rest4 = data_tmp_4.iloc[120401:]
-        # check event codes -  0, 1, 2, 3, 4, 6  - proximal_light_stim condition:
+        # check event codes -  0, 1, 2, 3, 4, 6  - proximal_light_stim condition - countdown end
+
+        ######  label the 4 dfs - flanker end - countdown end  ######
+        # create new column - EVENT - fill it with values - flanker start, flanker end, countdown end
+        event_conditions = [
+            # Distal shock conditions
+            ((data['ch0'] == 5) & (data['ch4'] == 5) & (data['ch6'] == 5) &
+            (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+            (data['ch5'] == 0) & (data['ch7'] == 0)), # distal shock countdown start
+
+            ((data['ch0'] == 5) & (data['ch1'] == 5) & (data['ch3'] == 5) &
+             (data['ch4'] == 5) & (data['ch6'] == 5) & (data['ch2'] == 0) &
+             (data['ch5'] == 0) & (data['ch7'] == 0)),  # distal shock countdown end *** fixed: channel 0, 1, 3, 4, 6
+
+            ((data['ch2'] == 5) & (data['ch0'] == 0) & (data['ch1'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 0) & (data['ch7'] == 0)), # distal shock flanker start
+
+            ((data['ch2'] == 5) & (data['ch0'] == 5) & (data['ch1'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 0) & (data['ch7'] == 0)), # distal shock flanker end
+
+            # Proximal shock conditions
+            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 5) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)), # proximal shock countdown start
+
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) &
+            (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)), # proximal shock countdown end
+
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) &
+            (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 0) & (data['ch7'] == 0)), # proximal shock flanker start
+
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) &
+            (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 0) & (data['ch7'] == 0)), # proximal shock flanker end
+
+            # Distal stim conditions
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) &
+            (data['ch3'] == 0) & (data['ch4'] == 5) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)), # distal stim countdown start
+
+            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 5) &
+            (data['ch3'] == 5) & (data['ch4'] == 5) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)), # distal stim countdown end *** fixed 1, 2, 3, 4, 6
+
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 5) &
+            (data['ch6'] == 0) & (data['ch7'] == 0)), # distal stim flanker start
+
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 5) &
+            (data['ch6'] == 0) & (data['ch7'] == 0)), # distal stim flanker end
+
+            # Proximal stim conditions
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 5) &
+            (data['ch3'] == 0) & (data['ch4'] == 5) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)), # proximal stim countdown start
+
+             ((data['ch2'] == 5) & (data['ch3'] == 5) & (data['ch4'] == 5) &
+             (data['ch6'] == 5) & (data['ch0'] == 0) & (data['ch1'] == 0) &
+             (data['ch5'] == 0) & (data['ch7'] == 0)),  # proximal shock countdown end *** fixed: channel 2, 3, 4, 6
+
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)), # proximal stim flanker start
+
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) &
+            (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
+            (data['ch6'] == 5) & (data['ch7'] == 0)) # proximal stim flanker end
+        ]
 
 
-        # pretty sure I can delete everything below
-        # index = data['start'].tolist().index('start') #this line finds the index of the first occurrence of 'start' in the 'start' column -  9033698
-        # first get the start_li and downsample - this is downsampling the 'start' column only for now by getting every 20th value
-        # Start_li = data['start'].tolist()[::20]  # creates a new list of the 'start' column
-        # Start_num = find_non_none_indices(Start_li)  # this finds the index of every 'start' occurrence
-        # startcode.append(len(Start_num))
+        # Define corresponding condition labels in the requested format
+        condition_values = [
+            'distal shock countdown start',  # 1st condition
+            'distal shock countdown end',  # 2nd condition
+            'distal shock flanker start',  # 3rd condition
+            'distal shock flanker end',  # 4th condition
 
+            'proximal shock countdown start',  # 5th condition
+            'proximal shock countdown end',  # 6th condition
+            'proximal shock flanker start',  # 7th condition
+            'proximal shock flanker end',  # 8th condition
 
-        # from data_rest - find the second block - find the start, grab index, add 60.1 seconds
-        # every time check that teh event code is there - you expect that this event code combination is the end
-        index = data_rest['start'].tolist().index('start') + 40
+            'distal stim countdown start',  # 9th condition
+            'distal stim countdown end',  # 10th condition
+            'distal stim flanker start',  # 11th condition
+            'distal stim flanker end',  # 12th condition
 
+            'proximal stim countdown start',  # 13th condition
+            'proximal stim countdown end',  # 14th condition
+            'proximal stim flanker start',  # 15th condition
+            'proximal stim flanker end'  # 16th condition
+        ]
+        print(f"Number of conditions: {len(event_conditions)}")
+        print(f"Number of values: {len(condition_values)}")
 
+        #data['condition'] = np.select(condition_conditions, condition_values, default='none')
+        data_1['EVENT'] = np.select(event_conditions, condition_values, default='none')
+        data_2['EVENT'] = np.select(event_conditions, condition_values, default='none')
+        data_3['EVENT'] = np.select(event_conditions, condition_values, default='none')
+        data_4['EVENT'] = np.select(event_conditions, condition_values, default='none')
 
-
-
-        # all we need is eda, event
+        # all we need is eda, event and index
         data_1_save = data_1[['EDA', "Event"]]
 
-        savefile = ID + "_encoding_" + str(run + 1) + ".txt"
+
+        ###### After labelling, take out the important things --- then downsample --- then put in timepoints ########
+        # The number "0.01" here dependents on your sampling rate. I have 2000 sampling rate, then I downsampled 20 folds, so now it is 100 sampling rate for the "encoding_downsample". In this case, I use 1/100 = 0.01
+        encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
+        # savefile = ID + "_encoding_" + str(run + 1) + ".txt"
         # downsample
         # Select every 20th row
         encoding_downsample = data_1_save[::20]
         encoding_downsample.reset_index(inplace=True, drop=True)
         # add a column for time points.
 
-
-
-        ###### After labelling, take out the important things --- then downsample --- then put in timepoints ########
-        # The number "0.01" here dependents on your sampling rate. I have 2000 sampling rate, then I downsampled 20 folds, so now it is 100 sampling rate for the "encoding_downsample". In this case, I use 1/100 = 0.01
-        encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
-
         # reorder columns
         encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'Event']]
         # remove event code when appeared twice in the same trial - the block of code below does that
 
-        indexli = []
+        #label full event (including distal, proximal, shock, stim)
+
 
         for k in range(len(encoding_downsample)):
             if k < len(encoding_downsample) - 1:
@@ -188,16 +274,11 @@ for ID in IDs:
         encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
 
 
-    # save as txt files
 
-    # if you want you can just append the txt files together
-
+    # save as txt files here
 
 
 
-
-
-
-
+    # if you want you can append the txt files together into one file
 
 
