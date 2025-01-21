@@ -168,6 +168,9 @@ for ID in IDs:
         # data['condition'] = np.select(condition_conditions, condition_values, default='none')
         data['EVENT'] = np.select(event_conditions, condition_values, default='none')
 
+        # This line of code will count how many rows have a value in the row EVENT - it will tell you how many rows for each unique value, including the none value
+        value_counts = data['EVENT'].value_counts()
+        print(value_counts)
 
         # Get the start of the countdown - this will be the codes for countdown_start
         conditions = [
