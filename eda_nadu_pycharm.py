@@ -137,40 +137,47 @@ for ID in IDs:
              (data['ch6'] == 5) & (data['ch7'] == 0))  # proximal stim flanker end
         ]
 
+        ### TO DO: thse have to be numbers - LedaLab needs numbers - remember which number means what - keep it documented
+        # example = values = [7, 1, 2, 3, 4, 5, 6]
+
         # Define corresponding condition labels in the requested format
         condition_values = [
-            'distal shock countdown start',  # 1st condition
-            'distal shock countdown end',  # 2nd condition
-            'distal shock flanker start',  # 3rd condition
-            'distal shock flanker end',  # 4th condition
+            1, #'distal shock countdown start',  # 1st condition
+            2, #'distal shock countdown end',  # 2nd condition
+            3, #'distal shock flanker start',  # 3rd condition
+            4, #'distal shock flanker end',  # 4th condition
 
-            'proximal shock countdown start',  # 5th condition
-            'proximal shock countdown end',  # 6th condition
-            'proximal shock flanker start',  # 7th condition
-            'proximal shock flanker end',  # 8th condition
+            5, #'proximal shock countdown start',  # 5th condition
+            6, #'proximal shock countdown end',  # 6th condition
+            7, #'proximal shock flanker start',  # 7th condition
+            8, #'proximal shock flanker end',  # 8th condition
 
-            'distal stim countdown start',  # 9th condition
-            'distal stim countdown end',  # 10th condition
-            'distal stim flanker start',  # 11th condition
-            'distal stim flanker end',  # 12th condition
+            9, #'distal stim countdown start',  # 9th condition
+            10, #'distal stim countdown end',  # 10th condition
+            11, #'distal stim flanker start',  # 11th condition
+            12, #'distal stim flanker end',  # 12th condition
 
-            'proximal stim countdown start',  # 13th condition
-            'proximal stim countdown end',  # 14th condition
-            'proximal stim flanker start',  # 15th condition
-            'proximal stim flanker end'  # 16th condition
+            13, #'proximal stim countdown start',  # 13th condition
+            14, #'proximal stim countdown end',  # 14th condition
+            15, #'proximal stim flanker start',  # 15th condition
+            16, #'proximal stim flanker end'  # 16th condition
         ]
-        print(f"Number of conditions: {len(event_conditions)}")
-        print(f"Number of values: {len(condition_values)}")
+        #print(f"Number of conditions: {len(event_conditions)}")
+        #print(f"Number of values: {len(condition_values)}")
 
-        print("data shape before labelling:")
-        print(data.shape)
+        #print("data shape before labelling:")
+        #print(data.shape)
 
         # data['condition'] = np.select(condition_conditions, condition_values, default='none')
-        data['EVENT'] = np.select(event_conditions, condition_values, default='none')
+        #data['EVENT'] = np.select(event_conditions, condition_values, default='none')
 
-        # This line of code will count how many rows have a value in the row EVENT - it will tell you how many rows for each unique value, including the none value
-        value_counts = data['EVENT'].value_counts()
-        print(value_counts)
+        data['EVENT'] = np.select(event_conditions, condition_values)
+
+
+        # Did it find the conditions from the event codes? Check that there are values besides none in the event col
+        # The line of code below will count how many rows have a value in the row EVENT - it will tell you how many rows for each unique value, including the none value
+        # value_counts = data['EVENT'].value_counts()
+        # print(value_counts)
 
         # Get the start of the countdown - this will be the codes for countdown_start
         conditions = [
@@ -251,42 +258,90 @@ for ID in IDs:
 
 
         # all we need is eda, event and index
-        data_1_save = data_1[['EDA', "Event"]]
-
+        data_1_save = data_1[['EDA', "EVENT"]]
+        data_2_save = data_2[['EDA', "EVENT"]]
+        data_3_save = data_3[['EDA', "EVENT"]]
+        data_4_save = data_4[['EDA', "EVENT"]]
 
         ###### After labelling, take out the important things --- then downsample --- then put in timepoints ########
+        # Sampling rate 2000 - sample every 20th row
+
+        # Check rows before and after downsampling
+        print(f"The data_1_save DataFrame has {data_1_save.shape[0]} rows before downsampling.")
+
+        #encoding_downsample = data_1_save[::20]
+        encoding_downsample = data_1_save[::20].copy()
+
+        # Check - Print the number of rows in the DataFrame
+        print(f"The encoding_downsample  DataFrame has {encoding_downsample.shape[0]} rows after downsampling.")
+        encoding_downsample.reset_index(inplace=True, drop=True)
+
         # The number "0.01" here dependents on your sampling rate. I have 2000 sampling rate, then I downsampled 20 folds, so now it is 100 sampling rate for the "encoding_downsample". In this case, I use 1/100 = 0.01
         encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
-        # savefile = ID + "_encoding_" + str(run + 1) + ".txt"
-        # downsample
-        # Select every 20th row
-        encoding_downsample = data_1_save[::20]
-        encoding_downsample.reset_index(inplace=True, drop=True)
-        # add a column for time points.
+        # reorder columns
+        encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
+
+
+        ########## Loop ##########
+        # Dictionary to store the original and processed DataFrames
+        data_dict = {
+            'data_1_save': data_1[['EDA', 'EVENT']],
+            'data_2_save': data_2[['EDA', 'EVENT']],
+            'data_3_save': data_3[['EDA', 'EVENT']],
+            'data_4_save': data_4[['EDA', 'EVENT']]
+        }
+
+        processed_data = {}
+
+        # Loop through the data_dict to process each DataFrame
+        for name, df in data_dict.items():
+            print(f"The {name} DataFrame has {df.shape[0]} rows before downsampling.")
+
+            # Downsample every 20th row and create a copy
+            encoding_downsample = df[::20].copy()
+
+            # Reset the index and calculate the timepoint
+            encoding_downsample.reset_index(inplace=True, drop=True)
+            encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
+
+            # Reorder columns
+            encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
+
+            # Save the processed DataFrame
+            processed_data[name] = encoding_downsample
+
+            print(f"The {name} DataFrame has {encoding_downsample.shape[0]} rows after downsampling.")
+
+        # Access the processed DataFrames
+        for name, df in processed_data.items():
+            print(f"Processed {name} DataFrame:")
+            print(df.head())
+
+        # remove event code when appeared twice in the same trial
+        indexli = []
 
         # reorder columns
-        encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'Event']]
         # remove event code when appeared twice in the same trial - the block of code below does that
 
         #label full event (including distal, proximal, shock, stim)
-
+        # do we need to use find_non_none_indices ? Check Jingyi's old code
+        #
 
         for k in range(len(encoding_downsample)):
             if k < len(encoding_downsample) - 1:
-                Code1 = encoding_downsample.loc[k]['Event']
-                Code2 = encoding_downsample.loc[k + 1]['Event']
+                Code1 = encoding_downsample.loc[k]['EVENT']
+                Code2 = encoding_downsample.loc[k + 1]['EVENT']
                 if int(Code1) > 0 and int(Code2) > 0:
                     indexli.append(k + 1)
         for ind in indexli:
-            encoding_downsample.loc[ind, "Event"] = 0
+            encoding_downsample.loc[ind, "EVENT"] = 0
         save = os.path.join(save_dir, savefile)
         encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
 
-
+        savefile = ID + "_task_" + str(run + 1) + ".txt"
+        save = os.path.join(save_dir, savefile)
 
     # save as txt files here
-
-
 
     # if you want you can append the txt files together into one file
 
