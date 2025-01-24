@@ -21,7 +21,7 @@ IDs = ["03"]
 subject = []
 runli = []
 startcode = []
-runs = [3]
+runs = [0, 1, 3, 4, 5, 6, 7, 8]
 
 
 # Define a function that find the index of not none elements in the list
@@ -335,13 +335,23 @@ for ID in IDs:
                     indexli.append(k + 1)
         for ind in indexli:
             encoding_downsample.loc[ind, "EVENT"] = 0
-        save = os.path.join(save_dir, savefile)
-        encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
 
-        savefile = ID + "_task_" + str(run + 1) + ".txt"
+        #create a filepath for
+        #encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
+
+        savefile = ID + "_task_" + str(run) + ".txt"
+        print(f"filename: {savefile}")
         save = os.path.join(save_dir, savefile)
 
-    # save as txt files here
+        encoding_downsample.to_csv(save, header=True, index=None, sep='\t', mode='a')
+
+        # remove all rows with a 0 in the EVENT column
+        encoding_downsample2 = encoding_downsample[encoding_downsample['EVENT'] != 0].reset_index(drop=True)
+
+        savefile2 = ID + "_task_" + str(run) + "short.txt"
+        print(f"filename: {savefile}")
+        save = os.path.join(save_dir, savefile2)
+        encoding_downsample2.to_csv(save, header=True, index=None, sep='\t', mode='a')
 
     # if you want you can append the txt files together into one file
 
