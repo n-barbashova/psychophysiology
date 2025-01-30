@@ -3,6 +3,12 @@ import pandas as pd
 import os
 import numpy as np
 
+# To do:
+# import this quarter's task file
+# recalculate the 60 seconds - check it
+# check it against one subject's data and see if it matches up with the order of the countdowns
+
+
 # the timing files we want to get are three columns  - timestamp,  event code, event name
 # import csv that you created, select the EDA column (& HR)
 
@@ -11,11 +17,11 @@ import numpy as np
 # high sampling rate
 
 #save directory - processed event code timing files go here
-save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/acq_data/EDA_processed"
+save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing"
 
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
-rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/acq_data/fmcc_csv"
-IDs = ["03"]
+rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
+IDs = ["55"]
 
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
@@ -48,13 +54,15 @@ for ID in IDs:
 
         # Current columns = EDA, CORR, ECG, Feedback, Stim, ch1-8
         # Let's remove the Corr & Feedback columns
+        print(f"Number of columns: {len(tmp_df.columns)}")
 
         data = (tmp_df  # make a copy of the df and...
                 .drop(index=0)  # remove the first row
-                .drop(columns=[1, 3])  # drop columns 1 and 3 (Corr & Feedback)
+                .drop(columns=[2])  # drop col2 (0,1,2 - the 3rd channel) - (Feedback channel)
                 .reset_index(drop=True))  # reset row index
         #data.head() # see first few rows
         #print(data)  # take a look at the original data
+        print(f"Number of columns: {len(data.columns)}")
 
         # renaming the channels from 0 - 7 instead of 1 - 8 based on Nadu's event code convention
         data.columns = ['EDA', 'ECG', 'Stim', 'ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6',
@@ -66,75 +74,77 @@ for ID in IDs:
 
         print("data shape before creating conditions:")
         print(data.shape)
+        #print(data.head())
 
         event_conditions = [
-            # Distal shock conditions
-            ((data['ch0'] == 5) & (data['ch4'] == 5) & (data['ch6'] == 5) &
-             (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
-             (data['ch5'] == 0) & (data['ch7'] == 0)),  # distal shock countdown start
 
-            ((data['ch0'] == 5) & (data['ch1'] == 5) & (data['ch3'] == 5) &
-             (data['ch4'] == 5) & (data['ch6'] == 5) & (data['ch2'] == 0) &
-             (data['ch5'] == 0) & (data['ch7'] == 0)),  # distal shock countdown end *** fixed: channel 0, 1, 3, 4, 6
+            ###     Distal shock  ###
+            # Distal shock countdown start -  channel: 0, 4, 6
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch2'] == 5) & (data['ch0'] == 0) & (data['ch1'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 0) & (data['ch7'] == 0)),  # distal shock flanker start
+            # Distal shock countdown end - channel: 0, 1, 3, 4, 6   *** fixed
+            ((data['ch0'] == 5) & (data['ch1'] == 5) & (data['ch2'] == 0) & (data['ch3'] == 5) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch2'] == 5) & (data['ch0'] == 5) & (data['ch1'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 0) & (data['ch7'] == 0)),  # distal shock flanker end
+            # Distal shock flanker start - channel: 2
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) & (data['ch3'] == 0) &
+             (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
-            # Proximal shock conditions
-            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 5) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0)),  # proximal shock countdown start
+            # Distal shock flanker end - channels: 0, 2
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 5) & (data['ch3'] == 0) &
+             (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) &
-             (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0)),  # proximal shock countdown end
+            ###     proximal shock  ###
+            # Proximal shock countdown start - channel: 1, 4, 6  -
+            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) &
-             (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 0) & (data['ch7'] == 0)),  # proximal shock flanker start
+            # Proximal shock countdown end - channels: 2, 3, 4, 6  *** fixed
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) & (data['ch3'] == 5) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) &
-             (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 0) & (data['ch7'] == 0)),  # proximal shock flanker end
+            # Proximal shock flanker start - channel: 3 -
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 5) &
+             (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
-            # Distal stim conditions
-            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) &
-             (data['ch3'] == 0) & (data['ch4'] == 5) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0)),  # distal stim countdown start
+            # Proximal shock flanker end -  channels: 0, 3
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 5) &
+             (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 5) &
-             (data['ch3'] == 5) & (data['ch4'] == 5) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0)),  # distal stim countdown end *** fixed 1, 2, 3, 4, 6
+            ###     Distal stim   ###
+            # Distal stim countdown start  - channels: 1, 2, 3, 4, 6 ) *** fixed
+            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 5) & (data['ch3'] == 5) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 5) &
-             (data['ch6'] == 0) & (data['ch7'] == 0)),  # distal stim flanker start
+            # Distal stim countdown end - channels: 1, 2, 3, 4, 6 ) *** fixed
+            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 5) & (data['ch3'] == 5) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 5) &
-             (data['ch6'] == 0) & (data['ch7'] == 0)),  # distal stim flanker end
+            # Distal stim flanker start - channel: 5
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+             (data['ch4'] == 0) & (data['ch5'] == 5) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
-            # Proximal stim conditions
-            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 5) &
-             (data['ch3'] == 0) & (data['ch4'] == 5) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0)),  # proximal stim countdown start
+            # Distal stim flanker end  - channels: 0, 5
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+             (data['ch4'] == 0) & (data['ch5'] == 5) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
-            ((data['ch2'] == 5) & (data['ch3'] == 5) & (data['ch4'] == 5) &
-             (data['ch6'] == 5) & (data['ch0'] == 0) & (data['ch1'] == 0) &
-             (data['ch5'] == 0) & (data['ch7'] == 0)),  # proximal shock countdown end *** fixed: channel 2, 3, 4, 6
+            ###     proximal  stim   ###
+            # Proximal stim countdown start   - channels: 0, 2, 4, 6
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 5) & (data['ch3'] == 0) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0)),  # proximal stim flanker start
+            # Proximal stim countdown end - channels: 0, 1, 2, 3, 4, 6
+            ((data['ch0'] == 5) & (data['ch1'] == 5) & (data['ch2'] == 5) & (data['ch3'] == 5) &
+             (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
-            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) &
-             (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) &
-             (data['ch6'] == 5) & (data['ch7'] == 0))  # proximal stim flanker end
+            # Proximal stim flanker start  - channel 6
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+             (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
+
+            # Proximal stim flanker end  - channels: 0, 6
+            ((data['ch0'] == 5) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) &
+             (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0))
         ]
 
         ### TO DO: thse have to be numbers - LedaLab needs numbers - remember which number means what - keep it documented
@@ -209,32 +219,36 @@ for ID in IDs:
         data_tmp.reset_index(inplace=True, drop=True) #make the row start with 0 again
         # 60 seconds = 60 * 2000 = 120,000 rows - so we take the start and add that many rows to it
         # there is also a 100 ms pause between end of task and end of countdown - 120200 - this finds it
-        data_tmp_2 = data_tmp.iloc[0:120400] #get the 1st countdown block
+        data_tmp_2 = data_tmp.iloc[0:120200] #get the 1st countdown block
         #row
         # countdown #1 - - - create a df called data_1
         data_1 = data_tmp_2
         # check event codes seen at the end
         # Row 120163: channels 2, 3, 4, 6 - proximal shock- countdown end
         # now the rest of the data starts on row after
-        data_rest = data_tmp.iloc[120400:]
+        data_rest = data_tmp.iloc[120200:]
         data_rest.reset_index(inplace=True, drop=True) #make the row start with 0 again
         print(data_rest.index)
+        # 11, 12 ,10
 
         # get the index of the end of the start event code from data_rest df
         # if you remove the + 40 you can see the start code
         index = data_rest['start'].tolist().index('start') + 40
         #cut everything before the index
         data_2_tmp = data_rest.iloc[index:] #from the index to the end of the df
+
+
+
         # countdown #2
         data_2_tmp.reset_index(inplace=True, drop=True) #make the row start with 0 again
         print(data_2_tmp.index)
-        data_2 = data_2_tmp.iloc[0:120400] #get 2nd countdown
+        data_2 = data_2_tmp.iloc[0:120100] #get 2nd countdown
         # check event codes seen at the end- chan 0, 2  - distal shock  - flanker end
         # end row - 120275  - 0, 1, 3, 4, 6 - distal shock end
 
         # now the second time we cut the data folder and keep the rest - call it data_rest2
         # we start 1 row later
-        data_rest2 = data_2_tmp.iloc[120401:]
+        data_rest2 = data_2_tmp.iloc[120101:]
         data_rest2.reset_index(inplace=True, drop=True)
 
         # countdown 3
@@ -251,9 +265,9 @@ for ID in IDs:
         index = data_rest3['start'].tolist().index('start')   +40
         data_tmp_4 = data_rest3.iloc[index:]  # from the index to the end of the df
         data_tmp_4.reset_index(inplace=True, drop=True)  # make the row start with 0 again
-        data_4 = data_tmp_4.iloc[0:120400]  # get 3rd countdown
+        data_4 = data_tmp_4.iloc[0:120100]  # get 3rd countdown
         # check event codes seen at the end -
-        data_rest4 = data_tmp_4.iloc[120401:]
+        data_rest4 = data_tmp_4.iloc[120101:]
         # check event codes -  0, 1, 2, 3, 4, 6  - proximal_light_stim condition - countdown end
 
 
