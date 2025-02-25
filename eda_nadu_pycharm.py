@@ -113,8 +113,8 @@ for ID in IDs:
              (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0) & (data['ch7'] == 0)),
 
             ###     Distal stim   ###
-            # Distal stim countdown start  - channels: 1, 2, 3, 4, 6 ) *** fixed
-            ((data['ch0'] == 0) & (data['ch1'] == 5) & (data['ch2'] == 5) & (data['ch3'] == 5) &
+            # Distal stim countdown start  - channels: 2, 4, 6
+            ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5) & (data['ch3'] == 0) &
              (data['ch4'] == 5) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0)),
 
             # Distal stim countdown end - channels: 1, 2, 3, 4, 6 ) *** fixed
@@ -226,7 +226,7 @@ for ID in IDs:
         # check event codes seen at the end
         # Row 120163: channels 2, 3, 4, 6 - proximal shock- countdown end
         # now the rest of the data starts on row after
-        data_rest = data_tmp.iloc[120200:]
+        data_rest = data_tmp.iloc[120161:]
         data_rest.reset_index(inplace=True, drop=True) #make the row start with 0 again
         print(data_rest.index)
         # 11, 12 ,10
@@ -305,42 +305,51 @@ for ID in IDs:
             'data_4_save': data_4[['EDA', 'EVENT']]
         }
 
-        processed_data = {}
 
-        # Loop through the data_dict to process each DataFrame
-        for name, df in data_dict.items():
-            print(f"The {name} DataFrame has {df.shape[0]} rows before downsampling.")
+        # Loop through each dataset in data_dict
+        for i, (key, df) in enumerate(data_dict.items(), start=1):
+            # Create a unique filename for each dataset
+            savefile = f"{ID}_run{run + 1}_countdown{i}.txt"
+            save_path = os.path.join(save_dir, savefile)
 
-            # Downsample every 20th row and create a copy
+            # Downsample every 20th row
             encoding_downsample = df[::20].copy()
-
-            # Reset the index and calculate the timepoint
             encoding_downsample.reset_index(inplace=True, drop=True)
+
+            # Add timepoint column
             encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
 
             # Reorder columns
             encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
 
+            # Remove duplicate event codes appearing twice in the same trial
+            indexli = []
+
+            for k in range(len(encoding_downsample) - 1):
+                Code1 = encoding_downsample.loc[k, 'EVENT']
+                Code2 = encoding_downsample.loc[k + 1, 'EVENT']
+                if int(Code1) > 0 and int(Code2) > 0:
+                    indexli.append(k + 1)
+
+            for ind in indexli:
+                encoding_downsample.loc[ind, "EVENT"] = 0
+
             # Save the processed DataFrame
-            processed_data[name] = encoding_downsample
+            #encoding_downsample.to_csv(save_path, header=None, index=None, sep='\t', mode='w')
+            save = os.path.join(save_dir, savefile)
+            print(f"Saved: {savefile} to {save_dir}")
 
-            print(f"The {name} DataFrame has {encoding_downsample.shape[0]} rows after downsampling.")
-
-        # Access the processed DataFrames
-        for name, df in processed_data.items():
-            print(f"Processed {name} DataFrame:")
-            print(df.head())
-
+        #downsample
+        # Select every 20th row
+        encoding_downsample = data_1_save[::20]
+        encoding_downsample.reset_index(inplace=True, drop=True)
+        # add a column for time points.
+        #The number "0.01" here dependents on your sampling rate. I have 2000 sampling rate, then I downsampled 20 folds, so now it is 100 sampling rate for the "encoding_downsample". In this case, I use 1/100 = 0.01
+        encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
+        #reorder columns
+        encoding_downsample = encoding_downsample[['timepoint','EDA','EVENT']]
         # remove event code when appeared twice in the same trial
         indexli = []
-
-        # reorder columns
-        # remove event code when appeared twice in the same trial - the block of code below does that
-
-        #label full event (including distal, proximal, shock, stim)
-        # do we need to use find_non_none_indices ? Check Jingyi's old code
-        #
-
         for k in range(len(encoding_downsample)):
             if k < len(encoding_downsample) - 1:
                 Code1 = encoding_downsample.loc[k]['EVENT']
@@ -349,24 +358,14 @@ for ID in IDs:
                     indexli.append(k + 1)
         for ind in indexli:
             encoding_downsample.loc[ind, "EVENT"] = 0
+            save = os.path.join(save_dir, savefile)
+            encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
 
-        #create a filepath for
-        #encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
 
-        savefile = ID + "_task_" + str(run) + ".txt"
-        print(f"filename: {savefile}")
+        savefile = ID + "_task_" + str(run+1) + ".txt"
         save = os.path.join(save_dir, savefile)
 
-        encoding_downsample.to_csv(save, header=True, index=None, sep='\t', mode='a')
-
-        # remove all rows with a 0 in the EVENT column
-        encoding_downsample2 = encoding_downsample[encoding_downsample['EVENT'] != 0].reset_index(drop=True)
-
-        savefile2 = ID + "_task_" + str(run) + "short.txt"
-        print(f"filename: {savefile}")
-        save = os.path.join(save_dir, savefile2)
-        encoding_downsample2.to_csv(save, header=True, index=None, sep='\t', mode='a')
-
-    # if you want you can append the txt files together into one file
-
+        # reorder columns
+        # remove event code when appeared twice in the same trial - the block of code below does that
+        # do we need to use find_non_none_indices ? Check Jingyi's old code
 
