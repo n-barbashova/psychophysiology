@@ -17,7 +17,7 @@ import numpy as np
 # high sampling rate
 
 #save directory - processed event code timing files go here
-save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing"
+save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
 
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
 rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
@@ -311,6 +311,7 @@ for ID in IDs:
             # Create a unique filename for each dataset
             savefile = f"{ID}_run{run + 1}_countdown{i}.txt"
             save_path = os.path.join(save_dir, savefile)
+            print(save_path)
 
             # Downsample every 20th row
             encoding_downsample = df[::20].copy()
@@ -334,38 +335,18 @@ for ID in IDs:
             for ind in indexli:
                 encoding_downsample.loc[ind, "EVENT"] = 0
 
+            # remove repeated event codes (ie countdown numbers) - keep only first instance of all event codes besides 0
+            seen_events = set()  # Track seen EVENT codes
+            for k in range(len(encoding_downsample)):
+                event_code = encoding_downsample.loc[k, 'EVENT']
+                if event_code > 0:
+                    if event_code in seen_events:
+                        encoding_downsample.loc[k, 'EVENT'] = 0  # Set repeated instances to 0
+                    else:
+                        seen_events.add(event_code)  # Mark as seen
+
             # Save the processed DataFrame
             #encoding_downsample.to_csv(save_path, header=None, index=None, sep='\t', mode='w')
             save = os.path.join(save_dir, savefile)
-            print(f"Saved: {savefile} to {save_dir}")
-
-        #downsample
-        # Select every 20th row
-        encoding_downsample = data_1_save[::20]
-        encoding_downsample.reset_index(inplace=True, drop=True)
-        # add a column for time points.
-        #The number "0.01" here dependents on your sampling rate. I have 2000 sampling rate, then I downsampled 20 folds, so now it is 100 sampling rate for the "encoding_downsample". In this case, I use 1/100 = 0.01
-        encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
-        #reorder columns
-        encoding_downsample = encoding_downsample[['timepoint','EDA','EVENT']]
-        # remove event code when appeared twice in the same trial
-        indexli = []
-        for k in range(len(encoding_downsample)):
-            if k < len(encoding_downsample) - 1:
-                Code1 = encoding_downsample.loc[k]['EVENT']
-                Code2 = encoding_downsample.loc[k + 1]['EVENT']
-                if int(Code1) > 0 and int(Code2) > 0:
-                    indexli.append(k + 1)
-        for ind in indexli:
-            encoding_downsample.loc[ind, "EVENT"] = 0
-            save = os.path.join(save_dir, savefile)
-            encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='a')
-
-
-        savefile = ID + "_task_" + str(run+1) + ".txt"
-        save = os.path.join(save_dir, savefile)
-
-        # reorder columns
-        # remove event code when appeared twice in the same trial - the block of code below does that
-        # do we need to use find_non_none_indices ? Check Jingyi's old code
-
+            print(f"Full file path: {os.path.join(save_dir, savefile)}")
+ 
