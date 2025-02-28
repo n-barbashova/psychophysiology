@@ -1,20 +1,29 @@
 ReadMe:
 
-By Nadu 
+Nadu's Pipeline: 
+EDA Analysis 
 
 Requirements before starting: 
-First download the acq files from the Nasdrive - get into the cluster or onto dropbox. 
+Make sure acq files are available. Can download them from the Nasdrive - get into the cluster or onto dropbox. It's also ok to use Nasdrive path. 
 
 
 Step 1: acqtocsv.py
+
 This script converts the acq files to csv files. 
+Input the path of the acq files. Create a output directory to store the csv files for each participant and run. This script will basically have a row for each timepoint (2000 hz means 2000 rows per second). Each column is a channel, including the physio channels (EDA, ECG, etc and the digital channels which have the event codes). 
 
 * Step 1: ExportDataToCSV.m 
 Alternative script to convert acq file to csv files. 
 
+
 Step 2: EventCodes.py: put event code in
-Get the event codes from the PsychoPy file. 
-Find which event code corresponds with which channel. 
+
+Before running this script: get the event codes from the PsychoPy file. 
+Find which event code corresponds with which channels (channels are all binary). 
+This script goes through the CSV file, checks all the channels and then finds out which event happened and when. Each event is given a new number that is used as a marker (for instance start of countdown, start of flanker task, etc.) 
+
+At the end it is downsampled and all that is output is the physio data and the timing of the event code. So the output will have a column for EDA, a column for timepoint (in seconds) and a column for the event number.  
+ 
 
 
 Step 3: Run leda lab: batch_ledalab_command.m

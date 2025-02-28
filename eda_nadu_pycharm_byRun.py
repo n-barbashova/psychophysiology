@@ -27,7 +27,7 @@ IDs = ["49", "50", "55"]
 subject = []
 runli = []
 startcode = []
-runs = [0, 1, 3, 4, 5, 6, 7, 8]
+runs = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 
 # Define a function that find the index of not none elements in the list
@@ -261,8 +261,8 @@ for ID in IDs:
             # Track last seen event codes and their row indices
             recent_events = {}
 
-            # Define window size (30 seconds = 3000 rows)
-            window_size = 3000
+            # Define window size (59 seconds)
+            window_size = 6100
 
             for k in range(len(encoding_downsample)):
                 event_code = encoding_downsample.loc[k, 'EVENT']
@@ -273,6 +273,29 @@ for ID in IDs:
                         encoding_downsample.loc[k, 'EVENT'] = 0  # Set duplicate event to 0
                     else:
                         recent_events[event_code] = k  # Store latest occurrence
+
+
+            # remove any flanker start codes that appear at the end of a countdown, withing 5 seconds of an end event code
+            # Define the event codes
+            flanker_codes = {3, 7, 11, 15}
+            end_codes = {2, 6, 10, 14}
+
+            # Get indices where end codes appear
+            end_indices = encoding_downsample[encoding_downsample['EVENT'].isin(end_codes)].index
+
+            # Define window size (5 seconds = 500 rows)
+            window_size = 500
+
+            # Loop through each end code index
+            for end_idx in end_indices:
+                # Look back 500 rows (ensuring we don't go out of bounds)
+                start_idx = max(0, end_idx - window_size)
+
+                # Find flanker codes within this range and set them to 0
+                encoding_downsample.loc[start_idx:end_idx, 'EVENT'] = encoding_downsample.loc[start_idx:end_idx,
+                                                                      'EVENT'].apply(
+                    lambda x: 0 if x in flanker_codes else x
+                )
 
             # Define the countdown end codes that need to be turned to 0 - remove them to make it easier in LedaLab
             countdown_end_codes = {2, 4, 6, 8, 10, 12, 14, 16}

@@ -469,7 +469,7 @@ for ID in IDs:
         # check event codes seen at the end
         # Row 120163: channels 2, 3, 4, 6 - proximal shock- countdown end
         # now the rest of the data starts on row after
-        data_rest = data_tmp.iloc[120161:]
+        data_rest = data_tmp.iloc[120200:]
         data_rest.reset_index(inplace=True, drop=True) #make the row start with 0 again
         print(data_rest.index)
         # 11, 12 ,10
@@ -485,22 +485,22 @@ for ID in IDs:
         # countdown #2
         data_2_tmp.reset_index(inplace=True, drop=True) #make the row start with 0 again
         print(data_2_tmp.index)
-        data_2 = data_2_tmp.iloc[0:120100] #get 2nd countdown
+        data_2 = data_2_tmp.iloc[0:120200] #get 2nd countdown
         # check event codes seen at the end- chan 0, 2  - distal shock  - flanker end
         # end row - 120275  - 0, 1, 3, 4, 6 - distal shock end
 
         # now the second time we cut the data folder and keep the rest - call it data_rest2
         # we start 1 row later
-        data_rest2 = data_2_tmp.iloc[120101:]
+        data_rest2 = data_2_tmp.iloc[120201:]
         data_rest2.reset_index(inplace=True, drop=True)
 
         # countdown 3
         index = data_rest2['start'].tolist().index('start') +40
         data_tmp_3 = data_rest2.iloc[index:] #from the index to the end of the df
         data_tmp_3.reset_index(inplace=True, drop=True) #make the row start with 0 again
-        data_3 = data_tmp_3.iloc[0:120400] #get 3rd countdown
+        data_3 = data_tmp_3.iloc[0:120200] #get 3rd countdown
         # check event codes seen at the end -
-        data_rest3 = data_tmp_3.iloc[120401:]
+        data_rest3 = data_tmp_3.iloc[120201:]
         # channel 1, 2, 3, 4, 6  - distal_light_stim countdown end
         data_rest3. reset_index(inplace=True, drop=True)
 
@@ -508,9 +508,9 @@ for ID in IDs:
         index = data_rest3['start'].tolist().index('start')   +40
         data_tmp_4 = data_rest3.iloc[index:]  # from the index to the end of the df
         data_tmp_4.reset_index(inplace=True, drop=True)  # make the row start with 0 again
-        data_4 = data_tmp_4.iloc[0:120100]  # get 3rd countdown
+        data_4 = data_tmp_4.iloc[0:120200]  # get 3rd countdown
         # check event codes seen at the end -
-        data_rest4 = data_tmp_4.iloc[120101:]
+        data_rest4 = data_tmp_4.iloc[120200:]
         # check event codes -  0, 1, 2, 3, 4, 6  - proximal_light_stim condition - countdown end
 
 
@@ -607,8 +607,54 @@ for ID in IDs:
         savefile2 = ID + "_task_" + str(run) + "short.txt"
         print(f"filename: {savefile}")
         save = os.path.join(save_dir, savefile2)
-        encoding_downsample2.to_csv(save, header=True, index=None, sep='\t', mode='a')
+        #encoding_downsample2.to_csv(save, header=True, index=None, sep='\t', mode='a')
 
     # if you want you can append the txt files together into one file
+
+    # Remove duplicate event codes appearing twice in the same trial
+    indexli = []
+
+    for k in range(len(encoding_downsample) - 1):
+        Code1 = encoding_downsample.loc[k, 'EVENT']
+        Code2 = encoding_downsample.loc[k + 1, 'EVENT']
+        if int(Code1) > 0 and int(Code2) > 0:
+            indexli.append(k + 1)
+
+    for ind in indexli:
+        encoding_downsample.loc[ind, "EVENT"] = 0
+
+    # remove repeated event codes (ie countdown numbers) - keep only first instance of all event codes besides 0
+    seen_events = set()  # Track seen EVENT codes
+    for k in range(len(encoding_downsample)):
+        event_code = encoding_downsample.loc[k, 'EVENT']
+        if event_code > 0:
+            if event_code in seen_events:
+                encoding_downsample.loc[k, 'EVENT'] = 0  # Set repeated instances to 0
+            else:
+                seen_events.add(event_code)  # Mark as seen
+
+    # Save the processed DataFrame
+    # encoding_downsample.to_csv(save_path, header=None, index=None, sep='\t', mode='w')
+    # save = os.path.join(save_dir, savefile)
+    # print(f"Full file path: {os.path.join(save_dir, savefile)}")
+
+    test_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_hr_timing/"
+    # Ensure the test directory exists
+    if not os.path.exists(test_dir):
+        os.makedirs(test_dir)  # Create the directory if it doesn’t exist
+
+    save = os.path.join(test_dir, savefile)
+    print(f"Full file path: {save}")
+
+    # Try saving the file to the test directory
+    #encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='w')
+
+    # Check if the file exists immediately after saving
+    if os.path.exists(save):
+        print(f"File successfully saved: {save}")
+    else:
+        print("File was NOT saved successfully.")
+
+
 
 

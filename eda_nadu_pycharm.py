@@ -21,7 +21,7 @@ save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_La
 
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
 rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
-IDs = ["55"]
+IDs = ["49", "50", "55"]
 
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
@@ -284,16 +284,16 @@ for ID in IDs:
         print(f"The data_1_save DataFrame has {data_1_save.shape[0]} rows before downsampling.")
 
         #encoding_downsample = data_1_save[::20]
-        encoding_downsample = data_1_save[::20].copy()
+        #encoding_downsample = data_1_save[::20].copy()
 
         # Check - Print the number of rows in the DataFrame
         print(f"The encoding_downsample  DataFrame has {encoding_downsample.shape[0]} rows after downsampling.")
-        encoding_downsample.reset_index(inplace=True, drop=True)
+       # encoding_downsample.reset_index(inplace=True, drop=True)
 
         # The number "0.01" here dependents on your sampling rate. I have 2000 sampling rate, then I downsampled 20 folds, so now it is 100 sampling rate for the "encoding_downsample". In this case, I use 1/100 = 0.01
-        encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
+        #encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
         # reorder columns
-        encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
+       # encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
 
 
         ########## Loop ##########
@@ -305,11 +305,12 @@ for ID in IDs:
             'data_4_save': data_4[['EDA', 'EVENT']]
         }
 
-
+        save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
         # Loop through each dataset in data_dict
         for i, (key, df) in enumerate(data_dict.items(), start=1):
             # Create a unique filename for each dataset
             savefile = f"{ID}_run{run + 1}_countdown{i}.txt"
+            #savefile = f"{ID}_run{run + 1}_countdown{i}.mat"
             save_path = os.path.join(save_dir, savefile)
             print(save_path)
 
@@ -347,6 +348,24 @@ for ID in IDs:
 
             # Save the processed DataFrame
             #encoding_downsample.to_csv(save_path, header=None, index=None, sep='\t', mode='w')
-            save = os.path.join(save_dir, savefile)
-            print(f"Full file path: {os.path.join(save_dir, savefile)}")
- 
+            #save = os.path.join(save_dir, savefile)
+            #print(f"Full file path: {os.path.join(save_dir, savefile)}")
+
+            test_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/"
+            # Ensure the test directory exists
+            if not os.path.exists(test_dir):
+                os.makedirs(test_dir)  # Create the directory if it doesn’t exist
+
+            save = os.path.join(test_dir, savefile)
+            print(f"Full file path: {save}")
+
+            # Try saving the file to the test directory
+            encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='w')
+
+            # Check if the file exists immediately after saving
+            if os.path.exists(save):
+                print(f"File successfully saved: {save}")
+            else:
+                print("File was NOT saved successfully.")
+
+
