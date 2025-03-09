@@ -1,0 +1,78 @@
+In distal_shock condition: 
+countdown start: 81 (channel: 0, 4, 6 )
+countdown end: 91 (channel: 0, 1, 3, 4, 6) *** fixed 
+flanker start: 4 (channel: 2)
+flanker end: 5 (channels: 0, 2)
+
+In proximal_shock condition:
+countdown start: 82 (channel: 1, 4, 6 )
+countdown end: 92 (channels: 2, 3, 4, 6 ) *** fixed 
+flanker start: 8 (channel: 3)
+flanker end: 9(channels: 0, 3)
+
+In distal_light_stim condition:
+countdown start: 84 (channels: 2, 4, 6)
+countdown end: 94 (channels: 1, 2, 3, 4, 6 ) *** fixed 
+flanker start: 32 (channel: 5) 
+flanker end: 33 (channels: 0, 5) 
+		 	
+In proximal_light_stim condition: 
+countdown start: 85	(channels: 0, 2, 4, 6) 
+countdown end: 95 (channels: 0, 1, 2, 3, 4, 6)
+flanker start: 64 (channel 6) 
+flanker end: 65 (channels: 0, 6) 
+
+
+Flanker: 
+Flanker stim appear = channel 7 
+
+
+To do: 
+- I removed the "start" event - so now add it back 
+-         index = data['start'].tolist().index('start') + 40
+- maybe 39 instead? 
+- make sure it's kept in some form 
+- flanker often appears at the end of every countdown - 
+- probably psychopy error  the flanker loop resests/ restart  at the end 
+- index - if one of the "start" codes appears within 5 seconds of countdown end, 
+# just set those channels to 0 
+
+
+# don't need flanker end 
+
+
+ condition_values = [
+            1, #'distal shock countdown start',  # 1st condition
+            2, #'distal shock countdown end',  # 2nd condition
+            3, #'distal shock flanker start',  # 3rd condition
+            4, #'distal shock flanker end',  # 4th condition
+
+            5, #'proximal shock countdown start',  # 5th condition
+            6, #'proximal shock countdown end',  # 6th condition
+            7, #'proximal shock flanker start',  # 7th condition
+            8, #'proximal shock flanker end',  # 8th condition
+
+            9, #'distal stim countdown start',  # 9th condition
+            10, #'distal stim countdown end',  # 10th condition
+            11, #'distal stim flanker start',  # 11th condition
+            12, #'distal stim flanker end',  # 12th condition
+
+            13, #'proximal stim countdown start',  # 13th condition
+            14, #'proximal stim countdown end',  # 14th condition
+            15, #'proximal stim flanker start',  # 15th condition
+            16, #'proximal stim flanker end'  # 16th condition
+        ]
+        #print(f"Number of conditions: {len(event_conditions)}")
+        #print(f"Number of values: {len(condition_values)}")
+
+
+
+
+
+0 1 2 3 4 6 
+1+2+4+8+16+64 
+
+
+ 
+
+
