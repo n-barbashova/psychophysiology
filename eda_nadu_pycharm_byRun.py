@@ -21,13 +21,14 @@ save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_La
 
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
 rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
-IDs = ["49", "50", "55"]
-
+IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+            "68", "69", "70", "72", "73", "74"]
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
 runli = []
 startcode = []
 runs = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+
 
 
 # Define a function that find the index of not none elements in the list

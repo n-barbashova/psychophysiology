@@ -4,11 +4,13 @@ import os
 import numpy as np
 
 # check = pd.read_csv('/Users/jingyiwang/Desktop/EB_modified/EB_psychopyz/ivn07_16.txt', delimiter='\t')
-save_dir = "/zwork/jingyi/EB/EBpsychopyz_NegNeu/HRV/EKG_processed"
-rawdata = "/zwork/jingyi/EB/EBpsychopyz_NegNeu/rawdata_sorted"
-IDs = ["006", "007", "008", "009", "010", "011", "012", "013", "014", "015", "016", "017", "018", "019", "020", "021", "022", "023", "024", "025", "026", "027", "028", "029", "030", "031", "032", "033", "035", "036", "037", "038", "040", "041", "042", "043", "044", "045", "046", "047", "048", "049", "050", "051", "052", "053", "054", "055", "056", "057", "059", "060", "062", "063", "064", "065", "066", "067", "068", "069"]
+save_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/EKG_processed"
+rawdata = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/HR/"
 
-#We need to record the start event code condidtions for runs so that it can be used for the other analysis
+IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+            "68", "69", "70", "72", "73", "74"]
+
+#We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
 runli = []
 startcode = []
