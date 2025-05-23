@@ -1,4 +1,5 @@
 # Script for collapsing across digital channels
+
 import pandas as pd
 import os
 import numpy as np
@@ -8,7 +9,6 @@ import numpy as np
 # recalculate the 60 seconds - check it
 # check it against one subject's data and see if it matches up with the order of the countdowns
 
-
 # the timing files we want to get are three columns  - timestamp,  event code, event name
 # import csv that you created, select the EDA column (& HR)
 
@@ -16,13 +16,20 @@ import numpy as np
 # start has one row, end has one row - LedaLab needs to have just one row AND alos LedaLab can't handle
 # high sampling rate
 
-#save directory - processed event code timing files go here
-save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
-
+#####  INPUT DIRECTORY
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
 rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
-IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
-            "68", "69", "70", "72", "73", "74"]
+
+#####  OUTPUT DIRECTORY
+#save directory - processed event code timing files go here
+save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
+#IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+#            "68", "69", "70", "72", "73", "74"]
+
+IDs = ["76", "78", "81", "82", "84", "85", "86", "87",
+           "88", "89", "91", "93", "98", "99", "100", "103",
+            "104", "107"]
+
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
 runli = []
@@ -148,6 +155,7 @@ for ID in IDs:
              (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0))
         ]
 
+
         ### TO DO: thse have to be numbers - LedaLab needs numbers - remember which number means what - keep it documented
         # example = values = [7, 1, 2, 3, 4, 5, 6]
 
@@ -173,6 +181,7 @@ for ID in IDs:
             15, #'proximal stim flanker start',  # 15th condition
             16, #'proximal stim flanker end'  # 16th condition
         ]
+
         #print(f"Number of conditions: {len(event_conditions)}")
         #print(f"Number of values: {len(condition_values)}")
 
@@ -214,7 +223,7 @@ for ID in IDs:
             #              ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5 ) & (data['ch7'] == 0 ))  #proximal stim flanker start
 
         # all we need is eda, event and index
-        data_save = data[['ECG', "EVENT"]]
+        data_save = data[['EDA', "EVENT"]]
         encoding_downsample = data_save[::20].copy()
         encoding_downsample.reset_index(inplace=True, drop=True)
 
@@ -222,7 +231,7 @@ for ID in IDs:
         encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
 
         # Reorder columns
-        encoding_downsample = encoding_downsample[['timepoint', 'ECG', 'EVENT']]
+        encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
 
         save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
         # Loop through each dataset in data_dict
@@ -288,23 +297,22 @@ for ID in IDs:
             window_size = 500
 
             # Loop through each end code index
-            #for end_idx in end_indices:
+            for end_idx in end_indices:
                 # Look back 500 rows (ensuring we don't go out of bounds)
-                #start_idx = max(0, end_idx - window_size)
+                start_idx = max(0, end_idx - window_size)
 
                 # Find flanker codes within this range and set them to 0
-                #encoding_downsample.loc[start_idx:end_idx, 'EVENT'] = encoding_downsample.loc[start_idx:end_idx,
-                #                                                      'EVENT'].apply(
-                #    lambda x: 0 if x in flanker_codes else x
-               # )
+                encoding_downsample.loc[start_idx:end_idx, 'EVENT'] = encoding_downsample.loc[start_idx:end_idx,
+                                                                      'EVENT'].apply(
+                    lambda x: 0 if x in flanker_codes else x
+                )
 
             # Define the countdown end codes that need to be turned to 0 - remove them to make it easier in LedaLab
-            #countdown_end_codes = {2, 4, 6, 8, 10, 12, 14, 16}
+            countdown_end_codes = {2, 4, 6, 8, 10, 12, 14, 16}
             # Set EVENT to 0 where it matches any of the countdown end codes
-            #encoding_downsample.loc[encoding_downsample['EVENT'].isin(countdown_end_codes), 'EVENT'] = 0
+            encoding_downsample.loc[encoding_downsample['EVENT'].isin(countdown_end_codes), 'EVENT'] = 0
 
-            test_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/HR/"
-
+            test_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/"
             # Ensure the test directory exists
             if not os.path.exists(test_dir):
                 os.makedirs(test_dir)  # Create the directory if it doesn’t exist

@@ -44,6 +44,12 @@ To do:
 
 - look at papers reporting EDA.
 
+```{r}
+library(pacman)
+
+p_load(dplyr, DescTools, smplot2, emmeans, lme4, dplyr, Rmisc, ggplot2, hrbrthemes, forcats, data.table, viridis, sjPlot, sjmisc, lmerTest, stringr, tidyr)
+```
+
 
 # First read in our data and combine across runs and subs
 ```{r}
@@ -62,92 +68,92 @@ custom_time_colors <- c("distal" = "#5B8FF9",  # Pleasant blue
 
 ```{r}
 
-library(pacman)
-
-p_load(dplyr, DescTools, smplot2, emmeans, lme4, dplyr, Rmisc, ggplot2, hrbrthemes, forcats, data.table, viridis, sjPlot, sjmisc, lmerTest, stringr, tidyr)
+### old code - delete later #### 
 
 # load function summarySEwtihin 
 
-subject_ids <- c("49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
-            "68", "69", "70", "72", "73", "74")
+# subject_ids <- c("49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+#             "68", "69", "70", "72", "73", "74")
+# 
+# subject_ids <- 49:75
+# run_ids <- 1:9
+# dir_path <- "/Users/nadezhdabarbashova/Desktop/fmcc_timing_30s"
+# combined_data <- data.frame()
 
+# 
+# # Load in R functions for SE
+# # check path 
+# pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
+# sapply(pathnames, FUN=source)
+#  
+# 
+# for (subject in subject_ids) {
+#   for (run in run_ids) {
+#     file_name <- paste0(subject, "_run", run, "_era.txt")
+#     file_path <- file.path(dir_path, file_name)
+#     
+#     if (file.exists(file_path)) {
+#       data <- read.table(file_path, sep = "\t", header = TRUE)
+#       data$Subject <- subject
+#       data$Run <- run
+#       
+#       combined_data <- rbind(combined_data, data)
+#     }
+#   }
+# }
+# 
+# # 1 - distal_shock_countdown_start 
+# # 5 - proximal_shock_countdown_start 
+# # 9 - distal_stim_countdown_start 
+# # 13 - proximal_stim_countdown_start 
+# 
+# 
+# combined_data <- combined_data %>%
+#   mutate(
+#         ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
+#          Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
+#          PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
+#          event_code = case_when(
+#            Event.Name == 1 ~ "countdown_start",
+#            Event.Name == 5 ~ "countdown_start",
+#            Event.Name == 9 ~ "countdown_start",
+#            Event.Name == 13 ~ "countdown_start",
+#            Event.Name == 3 ~ "flanker_start",
+#            Event.Name == 7 ~ "flanker_start",
+#            Event.Name == 11 ~ "flanker_start",
+#            Event.Name == 15 ~ "flanker_start"
+#          ),
+#          shock_cond = case_when(
+#            Event.Name == 1 ~ "shock",
+#            Event.Name == 3 ~ "shock",
+#            Event.Name == 5 ~ "shock",
+#            Event.Name == 7 ~ "shock",
+#            Event.Name == 9 ~ "stim",
+#            Event.Name == 11 ~ "stim",
+#            Event.Name == 13 ~ "stim", 
+#            Event.Name == 15 ~ "stim",
+#          ),
+#          time_cond = case_when(
+#            Event.Name == 1 ~ "distal",
+#            Event.Name == 3 ~ "distal",
+#            Event.Name == 9 ~ "distal",
+#            Event.Name == 11 ~ "distal",
+#            Event.Name == 5 ~ "proximal", 
+#            Event.Name == 7 ~ "proximal", 
+#            Event.Name == 13 ~ "proximal",
+#            Event.Name == 15 ~ "proximal"))
+# 
+# 
+# names(combined_data)[names(combined_data) == 'Subject'] <- 'sub'
+# names(combined_data)[names(combined_data) == 'Run'] <- 'run'
+# combined_data<-subset(combined_data, select=-c(Event.Name))
+# write.csv(combined_data, file.path(dir_path, "combined_processed_fullCountdown.csv"), row.names = FALSE)
+# cat("Data combined and saved to combined_data.csv")
+# 
+# out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda"
+# 
+# write.csv(combined_data, file.path(out_path, "processedEDA_fullCountdown_4s.csv"), row.names = FALSE)
 
-run_ids <- 1:9
-dir_path <- "/Users/nadezhdabarbashova/Desktop/fmcc_timing"
-combined_data <- data.frame()
-
-
-# Load in R functions for SE
-# check path 
-pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
-sapply(pathnames, FUN=source)
- 
-
-for (subject in subject_ids) {
-  for (run in run_ids) {
-    file_name <- paste0(subject, "_run", run, "_era.txt")
-    file_path <- file.path(dir_path, file_name)
-    
-    if (file.exists(file_path)) {
-      data <- read.table(file_path, sep = "\t", header = TRUE)
-      data$Subject <- subject
-      data$Run <- run
-      
-      combined_data <- rbind(combined_data, data)
-    }
-  }
-}
-
-# 1 - distal_shock_countdown_start 
-# 5 - proximal_shock_countdown_start 
-# 9 - distal_stim_countdown_start 
-# 13 - proximal_stim_countdown_start 
-
-
-combined_data <- combined_data %>%
-  mutate(
-        ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
-         Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
-         PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
-         event_code = case_when(
-           Event.Name == 1 ~ "countdown_start",
-           Event.Name == 5 ~ "countdown_start",
-           Event.Name == 9 ~ "countdown_start",
-           Event.Name == 13 ~ "countdown_start",
-           Event.Name == 3 ~ "flanker_start",
-           Event.Name == 7 ~ "flanker_start",
-           Event.Name == 11 ~ "flanker_start",
-           Event.Name == 15 ~ "flanker_start"
-         ),
-         shock_cond = case_when(
-           Event.Name == 1 ~ "shock",
-           Event.Name == 3 ~ "shock",
-           Event.Name == 5 ~ "shock",
-           Event.Name == 7 ~ "shock",
-           Event.Name == 9 ~ "stim",
-           Event.Name == 11 ~ "stim",
-           Event.Name == 13 ~ "stim", 
-           Event.Name == 15 ~ "stim",
-         ),
-         time_cond = case_when(
-           Event.Name == 1 ~ "distal",
-           Event.Name == 3 ~ "distal",
-           Event.Name == 9 ~ "distal",
-           Event.Name == 11 ~ "distal",
-           Event.Name == 5 ~ "proximal", 
-           Event.Name == 7 ~ "proximal", 
-           Event.Name == 13 ~ "proximal",
-           Event.Name == 15 ~ "proximal"))
-
-
-names(combined_data)[names(combined_data) == 'Subject'] <- 'sub'
-names(combined_data)[names(combined_data) == 'Run'] <- 'run'
-combined_data<-subset(combined_data, select=-c(Event.Name))
-write.csv(combined_data, file.path(dir_path, "combined_processed_fullCountdown.csv"), row.names = FALSE)
-cat("Data combined and saved to combined_data.csv")
-
-out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda"
-write.csv(combined_data, file.path(out_path, "processedEDA_fullCountdown_4s.csv"), row.names = FALSE)
 
 
 ```
@@ -194,100 +200,98 @@ find_outliers <- function(data, variable, sd_multiplier = 3) {
 ```
 
 
-
 # 15 seconds 
 ```{r}
 
-dir_path <- '/Users/nadezhdabarbashova/Desktop/fmcc_timing_15s'
-combined_data <- data.frame()
-
-# Load in R functions for SE
-# check path 
-pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
-sapply(pathnames, FUN=source)
- 
-for (subject in subject_ids) {
-  for (run in run_ids) {
-    file_name <- paste0(subject, "_run", run, "_era.txt")
-    file_path <- file.path(dir_path, file_name)
-    
-    if (file.exists(file_path)) {
-      data <- read.table(file_path, sep = "\t", header = TRUE)
-      data$Subject <- subject
-      data$Run <- run
-      
-      combined_data <- rbind(combined_data, data)
-    }
-  }
-}
-
-# 1 - distal_shock_countdown_start 
-# 5 - proximal_shock_countdown_start 
-# 9 - distal_stim_countdown_start 
-# 13 - proximal_stim_countdown_start 
-
-
-combined_data_15s <- combined_data %>%
-  mutate(
-        ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
-         Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
-         PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
-         event_code = case_when(
-           Event.Name == 1 ~ "countdown_start",
-           Event.Name == 5 ~ "countdown_start",
-           Event.Name == 9 ~ "countdown_start",
-           Event.Name == 13 ~ "countdown_start",
-           Event.Name == 3 ~ "flanker_start",
-           Event.Name == 7 ~ "flanker_start",
-           Event.Name == 11 ~ "flanker_start",
-           Event.Name == 15 ~ "flanker_start"
-         ),
-         shock_cond = case_when(
-           Event.Name == 1 ~ "shock",
-           Event.Name == 3 ~ "shock",
-           Event.Name == 5 ~ "shock",
-           Event.Name == 7 ~ "shock",
-           Event.Name == 9 ~ "stim",
-           Event.Name == 11 ~ "stim",
-           Event.Name == 13 ~ "stim", 
-           Event.Name == 15 ~ "stim",
-         ),
-         time_cond = case_when(
-           Event.Name == 1 ~ "distal",
-           Event.Name == 3 ~ "distal",
-           Event.Name == 9 ~ "distal",
-           Event.Name == 11 ~ "distal",
-           Event.Name == 5 ~ "proximal", 
-           Event.Name == 7 ~ "proximal", 
-           Event.Name == 13 ~ "proximal",
-           Event.Name == 15 ~ "proximal"))
-
-
-names(combined_data_15s)[names(combined_data_15s) == 'Subject'] <- 'sub'
-names(combined_data_15s)[names(combined_data_15s) == 'Run'] <- 'run'
-combined_data_15s <- subset(combined_data_15s, select=-c(Event.Name))
-
-write.csv(combined_data_15s, file.path(dir_path, "combined_processed_fullCountdown_15s.csv"), row.names = FALSE)
-cat("Data combined and saved to combined_data.csv")
-
-out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda/"
-
-# write.csv(combined_data_15s, file.path(out_path, "processedEDA_fullCountdown_15s.csv"), row.names = FALSE)
+# dir_path <- '/Users/nadezhdabarbashova/Desktop/fmcc_timing_15s'
+# combined_data <- data.frame()
+# 
+# # Load in R functions for SE
+# # check path 
+# pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
+# sapply(pathnames, FUN=source)
+#  
+# for (subject in subject_ids) {
+#   for (run in run_ids) {
+#     file_name <- paste0(subject, "_run", run, "_era.txt")
+#     file_path <- file.path(dir_path, file_name)
+#     
+#     if (file.exists(file_path)) {
+#       data <- read.table(file_path, sep = "\t", header = TRUE)
+#       data$Subject <- subject
+#       data$Run <- run
+#       
+#       combined_data <- rbind(combined_data, data)
+#     }
+#   }
+# }
+# 
+# # 1 - distal_shock_countdown_start 
+# # 5 - proximal_shock_countdown_start 
+# # 9 - distal_stim_countdown_start 
+# # 13 - proximal_stim_countdown_start 
+# 
+# 
+# combined_data_15s <- combined_data %>%
+#   mutate(
+#         ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
+#          Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
+#          PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
+#          event_code = case_when(
+#            Event.Name == 1 ~ "countdown_start",
+#            Event.Name == 5 ~ "countdown_start",
+#            Event.Name == 9 ~ "countdown_start",
+#            Event.Name == 13 ~ "countdown_start",
+#            Event.Name == 3 ~ "flanker_start",
+#            Event.Name == 7 ~ "flanker_start",
+#            Event.Name == 11 ~ "flanker_start",
+#            Event.Name == 15 ~ "flanker_start"
+#          ),
+#          shock_cond = case_when(
+#            Event.Name == 1 ~ "shock",
+#            Event.Name == 3 ~ "shock",
+#            Event.Name == 5 ~ "shock",
+#            Event.Name == 7 ~ "shock",
+#            Event.Name == 9 ~ "stim",
+#            Event.Name == 11 ~ "stim",
+#            Event.Name == 13 ~ "stim", 
+#            Event.Name == 15 ~ "stim",
+#          ),
+#          time_cond = case_when(
+#            Event.Name == 1 ~ "distal",
+#            Event.Name == 3 ~ "distal",
+#            Event.Name == 9 ~ "distal",
+#            Event.Name == 11 ~ "distal",
+#            Event.Name == 5 ~ "proximal", 
+#            Event.Name == 7 ~ "proximal", 
+#            Event.Name == 13 ~ "proximal",
+#            Event.Name == 15 ~ "proximal"))
+# 
+# 
+# names(combined_data_15s)[names(combined_data_15s) == 'Subject'] <- 'sub'
+# names(combined_data_15s)[names(combined_data_15s) == 'Run'] <- 'run'
+# combined_data_15s <- subset(combined_data_15s, select=-c(Event.Name))
+# 
+# write.csv(combined_data_15s, file.path(dir_path, "combined_processed_fullCountdown_15s.csv"), row.names = FALSE)
+# cat("Data combined and saved to combined_data.csv")
+# 
+# out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda/"
+# 
+# # write.csv(combined_data_15s, file.path(out_path, "processedEDA_fullCountdown_15s.csv"), row.names = FALSE)
 
 
 ```
 
 
-## 30 seconds 
+# 30 seconds 
 ```{r}
+
+subject_ids <- 49:103
+run_ids <- 1:9
+ 
 
 dir_path <- '/Users/nadezhdabarbashova/Desktop/fmcc_timing_30s/'  
 combined_data <- data.frame()
-
-# Load in R functions for SE
-# check path 
-pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
-sapply(pathnames, FUN=source)
  
 
 for (subject in subject_ids) {
@@ -360,10 +364,10 @@ combined_data_30s <- combined_data_30s %>%
   ungroup()
 
 
+out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda/processedEDA_fullCountdown_30s.csv"
 
-out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda/"
-
-#write.csv(combined_data, file.path(out_path, "processedEDA_fullCountdown_30s.csv"), row.names = FALSE)
+# dir.create(dirname(out_path), recursive = TRUE, showWarnings = FALSE)
+# write.csv(combined_data, out_path, row.names = FALSE)
 
 
 
@@ -375,26 +379,7 @@ out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_L
 
 # Non-responders removed by sight 
 # combined_data_30s 
-
-# combined_data_15s
-
-
-# remove outliers - from within that person's own response 
-
-# 15 seconds  
-combined_data_15s
-find_outliers(combined_data_15s, "ISCR_sqPlus1")
-
-combined_data_15s <- combined_data_15s %>%
-  filter(ISCR_sqPlus1 <= 7)
-
-
-combined_data_15s <- combined_data_15s %>%
-  group_by(sub) %>%
-  mutate(interval = cumsum(event_code == "countdown_start")) %>%
-  ungroup()
-
-
+ 
 # 30 seconds 
 combined_data_30s 
 find_outliers(combined_data_30s, "ISCR_sqPlus1")
@@ -402,7 +387,6 @@ find_outliers(combined_data_30s, "ISCR_sqPlus1")
 combined_data_30s <- combined_data_30s %>%
   filter(ISCR_sqPlus1 <= 8)
  
-
 # Print to check
 print(head(combined_data_30s))
 
@@ -430,46 +414,7 @@ print(results)
 
 ```
 
-```{r}
-
-## Now we're going to check who to exclude:
-# We can use the N.SCR value and see if there is responses in at least 10% of trials for each participant. 
-combined_data_15s <- combined_data_15s %>%
-  mutate(response = ifelse(CDA.nSCR > 0 & CDA.SCR > 0.02, 1, 0))
-
-subjects<-unique(combined_data_15s$sub)
-results <- data.frame(sub = integer(), has_valid_responses = logical())
-
-# check for responses 
-for (subj in subjects) {
-  #subj <- 49 
-  subj_data <- combined_data_15s %>%
-    filter(sub == subj)
-  valid_responses <- sum(subj_data$response)
-  print(valid_responses)
-  has_valid <- valid_responses >= 2
-  results <- rbind(results, data.frame(sub = subj, has_valid_responses = has_valid))
-}
-print(results)
-
-```
-
-
-```{r}
-
-hist(combined_data_15s$ISCR_sqPlus1)
-
-```
-
-
-```{r}
-
-hist(combined_data_30s$ISCR_sqPlus1)
-
-
-```
-
-Plot Main Effects 
+# Plot Main Effects 
 ```{r}
 
 # Time condition 

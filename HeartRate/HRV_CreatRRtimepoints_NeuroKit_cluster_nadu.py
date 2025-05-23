@@ -12,6 +12,11 @@ import matplotlib.pyplot as plt
 # peaks - r peak is the big peak, the imporant one
 
 IDs = [49]
+
+IDs = ["76", "78", "81", "82", "84", "85", "86", "87",
+           "88", "89", "91", "93", "98", "99", "100", "103",
+            "104"]
+
 runs = [ 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
@@ -53,8 +58,6 @@ figs_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/HR/figs/"
 #
 #         except Exception as e:
 #             print(f"Error processing {ID} Run {run}: {e}")
-
-
 
 
 
@@ -125,6 +128,7 @@ for ID in IDs:
             hrv_indices.to_csv(peak_fn, index=False)
             print(f"HRV indices saved to: {peak_fn}")
 
+            ## it gets this far 
             #Find Event Code indexes
             EventCode_idx = np.array(data.loc[data['EventCode']>0].index)
 
@@ -139,12 +143,15 @@ for ID in IDs:
             # ------------------------------
             # Step 6: Convert Event Indices to Time (NEW)
             # ------------------------------
+            print("step 6")
+
             sampling_rate = 100  # Adjust based on actual data
             event_timestamps = [idx / sampling_rate for idx in event_indices]  # Convert index to seconds
 
             # ------------------------------
             # Step 7: Create a DataFrame for Selected Events (NEW)
             # ------------------------------
+            print("step 7")
             events_df = pd.DataFrame({
                 "onset": event_timestamps,
                 "condition": flanker_events_df["EVENT"].values
@@ -153,6 +160,8 @@ for ID in IDs:
             # ------------------------------
             # Step 8: Create 30-Second Epochs for Flanker Start Events (NEW)
             # ------------------------------
+            print("step 8")
+
             epochs = nk.epochs_create(
                 data=data,
                 events=event_indices,  # Use only flanker start event indices
