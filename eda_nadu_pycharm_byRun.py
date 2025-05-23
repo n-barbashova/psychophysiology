@@ -8,7 +8,6 @@ import numpy as np
 # recalculate the 60 seconds - check it
 # check it against one subject's data and see if it matches up with the order of the countdowns
 
-
 # the timing files we want to get are three columns  - timestamp,  event code, event name
 # import csv that you created, select the EDA column (& HR)
 
@@ -16,13 +15,17 @@ import numpy as np
 # start has one row, end has one row - LedaLab needs to have just one row AND alos LedaLab can't handle
 # high sampling rate
 
-#save directory - processed event code timing files go here
-save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
-
+#####  INPUT DIRECTORY
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
 rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
-IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
-            "68", "69", "70", "72", "73", "74"]
+
+#####  OUTPUT DIRECTORY
+#save directory - processed event code timing files go here
+save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
+#IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+#            "68", "69", "70", "72", "73", "74"]
+
+
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
 runli = []
@@ -148,6 +151,7 @@ for ID in IDs:
              (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0))
         ]
 
+
         ### TO DO: thse have to be numbers - LedaLab needs numbers - remember which number means what - keep it documented
         # example = values = [7, 1, 2, 3, 4, 5, 6]
 
@@ -173,6 +177,7 @@ for ID in IDs:
             15, #'proximal stim flanker start',  # 15th condition
             16, #'proximal stim flanker end'  # 16th condition
         ]
+
         #print(f"Number of conditions: {len(event_conditions)}")
         #print(f"Number of values: {len(condition_values)}")
 

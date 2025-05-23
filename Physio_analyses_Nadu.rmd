@@ -1,0 +1,1568 @@
+
+---
+output: reprex::reprex_document
+knit: reprex::reprex_render
+ 
+---
+
+Eda Analyses!
+
+ISCR  - integral over phasic drier in response window 
+We take ISCR --- Square root + 1 
+This is what we need in the output 
+Phasic driver. 
+
+NSCr - number of skin conductance responses 
+- we use this as n exclusion criteria. If there are 0, we don't want the subject. 
+
+We use the _era text files 
+
+LedaLab.de/documentation 
+
+Check for outliers 
+
+Any other variables of interest? 
+
+To do: 
+- Should I check - reaction time and accuracy by run - participants' EDA 
+- is higher EDA associated with better cog control / metacog 
+- is it possible to get effect size on EDA? 
+-- probably not a normal distribution (histogram looks not normal)
+---  cannot run parametric test 
+--- non-parametric correlation (spearman's Rho correlation)
+--- permutational manova 
+
+- Interpreting barplot - error bars overlab but lmer shows significant effect?
+-- that can happen 
+
+- EDA over 15 seconds vs 30 seconds vs final 10 seconds? 
+-- look at trials in final 10 seconds? 
+
+--- EDA differential related to cognitive control
+-- trial by trial analyses (look at 10 second windows)
+- spearman's rho correlation  
+
+- look at papers reporting EDA.
+
+
+# First read in our data and combine across runs and subs
+```{r}
+
+knitr::opts_chunk$set(error = TRUE)
+
+custom_labels <- c("shock" = "Unpleasant Shock", "light_stim" = "Light Stimulation") 
+shock_cond_labels <- c("shock" = "Unpleasant Shock", "light_stim" = "Light Stimulation") 
+custom_colors <- c("light_stim" = "#FFB90F", "shock" = "#FF7F00")  # colors
+time_cond_labels <- c("proximal" = "Proximal", "distal" = "Distal")
+custom_time_colors <- c("distal" = "#5B8FF9",  # Pleasant blue
+                        "proximal" = "#F28EAA")  # Pleasant pink
+
+```
+
+
+```{r}
+
+library(pacman)
+
+p_load(dplyr, DescTools, smplot2, emmeans, lme4, dplyr, Rmisc, ggplot2, hrbrthemes, forcats, data.table, viridis, sjPlot, sjmisc, lmerTest, stringr, tidyr)
+
+# load function summarySEwtihin 
+
+subject_ids <- c("49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+            "68", "69", "70", "72", "73", "74")
+
+
+run_ids <- 1:9
+dir_path <- "/Users/nadezhdabarbashova/Desktop/fmcc_timing"
+combined_data <- data.frame()
+
+
+# Load in R functions for SE
+# check path 
+pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
+sapply(pathnames, FUN=source)
+ 
+
+for (subject in subject_ids) {
+  for (run in run_ids) {
+    file_name <- paste0(subject, "_run", run, "_era.txt")
+    file_path <- file.path(dir_path, file_name)
+    
+    if (file.exists(file_path)) {
+      data <- read.table(file_path, sep = "\t", header = TRUE)
+      data$Subject <- subject
+      data$Run <- run
+      
+      combined_data <- rbind(combined_data, data)
+    }
+  }
+}
+
+# 1 - distal_shock_countdown_start 
+# 5 - proximal_shock_countdown_start 
+# 9 - distal_stim_countdown_start 
+# 13 - proximal_stim_countdown_start 
+
+
+combined_data <- combined_data %>%
+  mutate(
+        ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
+         Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
+         PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
+         event_code = case_when(
+           Event.Name == 1 ~ "countdown_start",
+           Event.Name == 5 ~ "countdown_start",
+           Event.Name == 9 ~ "countdown_start",
+           Event.Name == 13 ~ "countdown_start",
+           Event.Name == 3 ~ "flanker_start",
+           Event.Name == 7 ~ "flanker_start",
+           Event.Name == 11 ~ "flanker_start",
+           Event.Name == 15 ~ "flanker_start"
+         ),
+         shock_cond = case_when(
+           Event.Name == 1 ~ "shock",
+           Event.Name == 3 ~ "shock",
+           Event.Name == 5 ~ "shock",
+           Event.Name == 7 ~ "shock",
+           Event.Name == 9 ~ "stim",
+           Event.Name == 11 ~ "stim",
+           Event.Name == 13 ~ "stim", 
+           Event.Name == 15 ~ "stim",
+         ),
+         time_cond = case_when(
+           Event.Name == 1 ~ "distal",
+           Event.Name == 3 ~ "distal",
+           Event.Name == 9 ~ "distal",
+           Event.Name == 11 ~ "distal",
+           Event.Name == 5 ~ "proximal", 
+           Event.Name == 7 ~ "proximal", 
+           Event.Name == 13 ~ "proximal",
+           Event.Name == 15 ~ "proximal"))
+
+
+names(combined_data)[names(combined_data) == 'Subject'] <- 'sub'
+names(combined_data)[names(combined_data) == 'Run'] <- 'run'
+combined_data<-subset(combined_data, select=-c(Event.Name))
+write.csv(combined_data, file.path(dir_path, "combined_processed_fullCountdown.csv"), row.names = FALSE)
+cat("Data combined and saved to combined_data.csv")
+
+out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda"
+write.csv(combined_data, file.path(out_path, "processedEDA_fullCountdown_4s.csv"), row.names = FALSE)
+
+
+```
+
+# function: find outiers
+```{r}
+
+# Function to find outliers that are 3 standard deviations away from the norm 
+find_outliers <- function(data, variable, sd_multiplier = 3) {
+  # Calculate mean and standard deviation for the specified variable
+  variable_mean <- mean(data[[variable]], na.rm = TRUE)
+  variable_sd <- sd(data[[variable]], na.rm = TRUE)
+  
+  # Define lower and upper bounds for the variable
+  lower_bound <- variable_mean - sd_multiplier * variable_sd
+  upper_bound <- variable_mean + sd_multiplier * variable_sd
+  print("lower_bound:")
+  print(lower_bound)
+  print("upper_bound:")
+  print(upper_bound)
+  
+  # Identify outliers
+  outliers <- data %>%
+    filter(data[[variable]] < lower_bound | data[[variable]] > upper_bound)
+  
+  # Print outliers
+  if (nrow(outliers) > 0) {
+    cat("### Outliers identified in", variable, "###\n")
+    print(outliers)
+  } else {
+    cat("No outliers found in", variable, "\n")
+  }
+  
+  # Return the outliers data frame
+  return(outliers)
+}
+
+
+# Example usage:
+# outliers <- find_outliers(combined, "first_weekly_valRat_retro_bias")
+
+
+
+```
+
+
+
+# 15 seconds 
+```{r}
+
+dir_path <- '/Users/nadezhdabarbashova/Desktop/fmcc_timing_15s'
+combined_data <- data.frame()
+
+# Load in R functions for SE
+# check path 
+pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
+sapply(pathnames, FUN=source)
+ 
+for (subject in subject_ids) {
+  for (run in run_ids) {
+    file_name <- paste0(subject, "_run", run, "_era.txt")
+    file_path <- file.path(dir_path, file_name)
+    
+    if (file.exists(file_path)) {
+      data <- read.table(file_path, sep = "\t", header = TRUE)
+      data$Subject <- subject
+      data$Run <- run
+      
+      combined_data <- rbind(combined_data, data)
+    }
+  }
+}
+
+# 1 - distal_shock_countdown_start 
+# 5 - proximal_shock_countdown_start 
+# 9 - distal_stim_countdown_start 
+# 13 - proximal_stim_countdown_start 
+
+
+combined_data_15s <- combined_data %>%
+  mutate(
+        ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
+         Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
+         PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
+         event_code = case_when(
+           Event.Name == 1 ~ "countdown_start",
+           Event.Name == 5 ~ "countdown_start",
+           Event.Name == 9 ~ "countdown_start",
+           Event.Name == 13 ~ "countdown_start",
+           Event.Name == 3 ~ "flanker_start",
+           Event.Name == 7 ~ "flanker_start",
+           Event.Name == 11 ~ "flanker_start",
+           Event.Name == 15 ~ "flanker_start"
+         ),
+         shock_cond = case_when(
+           Event.Name == 1 ~ "shock",
+           Event.Name == 3 ~ "shock",
+           Event.Name == 5 ~ "shock",
+           Event.Name == 7 ~ "shock",
+           Event.Name == 9 ~ "stim",
+           Event.Name == 11 ~ "stim",
+           Event.Name == 13 ~ "stim", 
+           Event.Name == 15 ~ "stim",
+         ),
+         time_cond = case_when(
+           Event.Name == 1 ~ "distal",
+           Event.Name == 3 ~ "distal",
+           Event.Name == 9 ~ "distal",
+           Event.Name == 11 ~ "distal",
+           Event.Name == 5 ~ "proximal", 
+           Event.Name == 7 ~ "proximal", 
+           Event.Name == 13 ~ "proximal",
+           Event.Name == 15 ~ "proximal"))
+
+
+names(combined_data_15s)[names(combined_data_15s) == 'Subject'] <- 'sub'
+names(combined_data_15s)[names(combined_data_15s) == 'Run'] <- 'run'
+combined_data_15s <- subset(combined_data_15s, select=-c(Event.Name))
+
+write.csv(combined_data_15s, file.path(dir_path, "combined_processed_fullCountdown_15s.csv"), row.names = FALSE)
+cat("Data combined and saved to combined_data.csv")
+
+out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda/"
+
+# write.csv(combined_data_15s, file.path(out_path, "processedEDA_fullCountdown_15s.csv"), row.names = FALSE)
+
+
+```
+
+
+## 30 seconds 
+```{r}
+
+dir_path <- '/Users/nadezhdabarbashova/Desktop/fmcc_timing_30s/'  
+combined_data <- data.frame()
+
+# Load in R functions for SE
+# check path 
+pathnames <- list.files(pattern="[.]R$", path="~/Dropbox/LEAP_Neuro_Lab/resources/R/Rfunctions", full.names=TRUE)
+sapply(pathnames, FUN=source)
+ 
+
+for (subject in subject_ids) {
+  for (run in run_ids) {
+    file_name <- paste0(subject, "_run", run, "_era.txt")
+    file_path <- file.path(dir_path, file_name)
+    
+    if (file.exists(file_path)) {
+      data <- read.table(file_path, sep = "\t", header = TRUE)
+      data$Subject <- subject
+      data$Run <- run
+      
+      combined_data <- rbind(combined_data, data)
+    }
+  }
+}
+
+# 1 - distal_shock_countdown_start 
+# 5 - proximal_shock_countdown_start 
+# 9 - distal_stim_countdown_start 
+# 13 - proximal_stim_countdown_start 
+
+
+combined_data_30s <- combined_data %>%
+  mutate(
+        ISCR_sqPlus1 = sqrt(CDA.ISCR) + 1,
+         Tonic_sqPlus1 = sqrt(CDA.Tonic) + 1,
+         PhasicMax_sqPlus1 = sqrt(CDA.PhasicMax) + 1,
+         event_code = case_when(
+           Event.Name == 1 ~ "countdown_start",
+           Event.Name == 5 ~ "countdown_start",
+           Event.Name == 9 ~ "countdown_start",
+           Event.Name == 13 ~ "countdown_start",
+           Event.Name == 3 ~ "flanker_start",
+           Event.Name == 7 ~ "flanker_start",
+           Event.Name == 11 ~ "flanker_start",
+           Event.Name == 15 ~ "flanker_start"
+         ),
+         shock_cond = case_when(
+           Event.Name == 1 ~ "shock",
+           Event.Name == 3 ~ "shock",
+           Event.Name == 5 ~ "shock",
+           Event.Name == 7 ~ "shock",
+           Event.Name == 9 ~ "stim",
+           Event.Name == 11 ~ "stim",
+           Event.Name == 13 ~ "stim", 
+           Event.Name == 15 ~ "stim",
+         ),
+         time_cond = case_when(
+           Event.Name == 1 ~ "distal",
+           Event.Name == 3 ~ "distal",
+           Event.Name == 9 ~ "distal",
+           Event.Name == 11 ~ "distal",
+           Event.Name == 5 ~ "proximal", 
+           Event.Name == 7 ~ "proximal", 
+           Event.Name == 13 ~ "proximal",
+           Event.Name == 15 ~ "proximal"))
+
+
+names(combined_data_30s)[names(combined_data_30s) == 'Subject'] <- 'sub'
+names(combined_data_30s)[names(combined_data_30s) == 'Run'] <- 'run'
+combined_data_30s <-subset(combined_data_30s, select=-c(Event.Name))
+write.csv(combined_data_30s, file.path(dir_path, "combined_processed_fullCountdown.csv"), row.names = FALSE)
+cat("Data combined and saved to combined_data_30s.csv")
+
+
+combined_data_30s <- combined_data_30s %>%
+  group_by(sub) %>%
+  mutate(interval = cumsum(event_code == "countdown_start")) %>%
+  ungroup()
+
+
+
+out_path <- "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/eda/"
+
+#write.csv(combined_data, file.path(out_path, "processedEDA_fullCountdown_30s.csv"), row.names = FALSE)
+
+
+
+```
+
+
+# Remove outliers and non-responders 
+```{r}
+
+# Non-responders removed by sight 
+# combined_data_30s 
+
+# combined_data_15s
+
+
+# remove outliers - from within that person's own response 
+
+# 15 seconds  
+combined_data_15s
+find_outliers(combined_data_15s, "ISCR_sqPlus1")
+
+combined_data_15s <- combined_data_15s %>%
+  filter(ISCR_sqPlus1 <= 7)
+
+
+combined_data_15s <- combined_data_15s %>%
+  group_by(sub) %>%
+  mutate(interval = cumsum(event_code == "countdown_start")) %>%
+  ungroup()
+
+
+# 30 seconds 
+combined_data_30s 
+find_outliers(combined_data_30s, "ISCR_sqPlus1")
+
+combined_data_30s <- combined_data_30s %>%
+  filter(ISCR_sqPlus1 <= 8)
+ 
+
+# Print to check
+print(head(combined_data_30s))
+
+
+## Now we're going to check who to exclude:
+# We can use the N.SCR value and see if there is responses in at least 10% of trials for each participant. 
+combined_data_30s <- combined_data_30s %>%
+  mutate(response = ifelse(CDA.nSCR > 0 & CDA.SCR > 0.02, 1, 0))
+
+subjects<-unique(combined_data_30s$sub)
+results <- data.frame(sub = integer(), has_valid_responses = logical())
+
+# check for responses 
+for (subj in subjects) {
+  #subj <- 49 
+  subj_data <- combined_data_30s %>%
+    filter(sub == subj)
+  valid_responses <- sum(subj_data$response)
+  print(valid_responses)
+  has_valid <- valid_responses >= 2
+  results <- rbind(results, data.frame(sub = subj, has_valid_responses = has_valid))
+}
+
+print(results)
+
+```
+
+```{r}
+
+## Now we're going to check who to exclude:
+# We can use the N.SCR value and see if there is responses in at least 10% of trials for each participant. 
+combined_data_15s <- combined_data_15s %>%
+  mutate(response = ifelse(CDA.nSCR > 0 & CDA.SCR > 0.02, 1, 0))
+
+subjects<-unique(combined_data_15s$sub)
+results <- data.frame(sub = integer(), has_valid_responses = logical())
+
+# check for responses 
+for (subj in subjects) {
+  #subj <- 49 
+  subj_data <- combined_data_15s %>%
+    filter(sub == subj)
+  valid_responses <- sum(subj_data$response)
+  print(valid_responses)
+  has_valid <- valid_responses >= 2
+  results <- rbind(results, data.frame(sub = subj, has_valid_responses = has_valid))
+}
+print(results)
+
+```
+
+
+```{r}
+
+hist(combined_data_15s$ISCR_sqPlus1)
+
+```
+
+
+```{r}
+
+hist(combined_data_30s$ISCR_sqPlus1)
+
+
+```
+
+Plot Main Effects 
+```{r}
+
+# Time condition 
+# Interaction of proximal and distal by countdown portion 
+combined_data_temporal <-combined_data_30s %>%
+  filter(event_code == "flanker_start" ) %>% 
+    group_by(sub, time_cond) %>%
+    dplyr::summarise(avg_iscr = mean(ISCR_sqPlus1), .groups = 'drop') %>%as.data.frame()
+ 
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+`rename` <- plyr::rename
+temporal_SE <- summarySEwithin(data=combined_data_temporal, measurevar ='avg_iscr', betweenvars=NULL, withinvars=c( 'time_cond'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+library(dplyr)
+
+
+```
+
+
+```{r}
+# Shock condition 
+
+
+
+
+```
+
+
+ 
+```{r}
+
+# Interaction of proximal and distal by countdown portion 
+combined_data_avg <- combined_data_30s %>%
+    group_by(sub, time_cond, shock_cond, event_code) %>%
+    dplyr::summarise(avg_iscr = mean(ISCR_sqPlus1), .groups = 'drop') %>%as.data.frame()
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+`rename` <- plyr::rename
+
+combined_data_avg_SE <- summarySEwithin(data=combined_data_avg, measurevar ='avg_iscr', betweenvars=NULL, withinvars=c( 'time_cond', 'shock_cond', 'event_code'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+
+library(dplyr)
+
+
+
+```
+
+```{r}
+
+# colors: 
+custom_colors <- c("light_stim" = "#FFB90F", "shock" = "#FF7F00")  # shock colors (gold + orange)
+time_cond_labels <- c("proximal" = "Proximal", "distal" = "Distal")
+
+palette = c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591") 
+
+
+# interaction - event code, shock, temporal 
+
+
+ggplot(combined_data_avg_SE, aes(x = time_cond, y = avg_iscr, fill = shock_cond, group = shock_cond)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, color = "black", size = 0.1) +
+  geom_errorbar(aes(ymin = avg_iscr - se, ymax = avg_iscr + se), 
+                position = position_dodge(width = 0.75), size = 0.3, width = 0.2, color = 'black') + # Thinner error bars
+  facet_wrap(~event_code, 
+             labeller = as_labeller(c("countdown_start" = "Countdown Start", 
+                                      "flanker_start" = "Flanker Start"))) + # Renamed facets
+  labs(x = "Condition", y = "ISCR", fill = "Shock Condition") +  
+  scale_fill_manual(values = custom_colors) +
+  theme_classic() +  
+  scale_x_discrete(labels = c("distal" = "Flanker Distal", "proximal" = "Flanker Proximal")) + # Renamed time condition labels
+  theme(axis.title.x = element_text(size = 12), 
+        axis.title.y = element_text(size = 12),
+        axis.text.x = element_text(size = 10, angle = 0, hjust = 0.5),  # Horizontal labels
+        axis.text.y = element_text(size = 10),
+        legend.position = "right") +  
+  scale_fill_manual(values = palette) + 
+  coord_cartesian(ylim = c(3, 4)) 
+
+
+
+```
+function: barplot 
+```{r}
+ 
+
+plot_custom_bar <- function(data, x_var, y_var, fill_var, group_var, error_var, title_x, title_y) {
+  
+  # Define color palette
+palette <- c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591") 
+  
+  ggplot(data, aes_string(x = x_var, y = y_var, fill = fill_var, group = group_var)) +
+    geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, 
+             color = "black", size = 0.1) +
+    geom_errorbar(aes_string(ymin = paste0(y_var, " - ", error_var), 
+                             ymax = paste0(y_var, " + ", error_var)), 
+                  position = position_dodge(width = 0.75), size = 0.3,
+                  width = 0.2, color = 'black') +
+    labs(x = title_x, y = title_y) +
+    theme_classic() +
+    theme(axis.title.x = element_text(size = 12), 
+        axis.title.y = element_text(size = 12),
+        axis.text.x = element_text(size = 10, angle = 0, hjust = 0.5),  # Horizontal labels
+        axis.text.y = element_text(size = 10),
+        legend.position = "right") + 
+    scale_fill_manual(values = palette) 
+}
+
+ 
+```
+
+
+Great! Now let's run statistical analyses on EDA by condition for each of our windows:
+
+```{r}
+
+eda_condition <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond  + (1|sub), combined_data_30s)
+
+anova(eda_condition)
+emmeans(eda_condition, pairwise~shock_cond)
+emmeans(eda_condition, pairwise~time_cond)
+ 
+
+# Sanity check: shock condition has an effect on EDA 
+# shock_cond *** 
+# shock_cond:time_cond ***  
+
+```
+
+15 second epoch
+```{r}
+
+# use df:  combined_data_15s 
+ 
+combined_data_15s <- subset(combined_data_15s, select=-c(CDA.Latency, CDA.AmpSum,CDA.Tonic, TTP.nSCR, TTP.Latency, TTP.AmpSum, Global.Mean, Global.MaxDeflection, CDA.ISCR, CDA.PhasicMax )) 
+
+
+combined_data_15s <- combined_data_15s %>%
+  mutate(response = ifelse(CDA.nSCR > 0 & CDA.SCR > 0.02, 1, 0))
+
+subjects <-unique(combined_data_15s$sub)
+results <- data.frame(sub = integer(), has_valid_responses = logical())
+#~84 trials per subject 10% = 8.4
+for (subj in subjects) {
+  subj_data <- combined_data_15s %>%
+    filter(sub == subj)
+  valid_responses <- sum(subj_data$response)
+  has_valid <- valid_responses >= 8
+  results <- rbind(results, data.frame(sub = subj, has_valid_responses = has_valid))
+}
+print(results)
+
+## for now we will remove subs by sight - remove 84, 65, 20, 53, 72, 77, 79,  - maybe 81, 75, 59
+
+##### remove EDA outliers:
+combined_data_avg_15s <-combined_data_15s %>%
+    group_by(sub, time_cond, shock_cond, event_code) %>%
+    dplyr::summarise(avg_iscr = mean(ISCR_sqPlus1), .groups = 'drop') %>% as.data.frame()
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+
+`rename` <- plyr::rename
+combined_data_avg_SE_15 <- summarySEwithin(data=combined_data_avg_15s, measurevar ='avg_iscr', betweenvars=NULL, withinvars=c( 'time_cond', 'shock_cond', 'event_code'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+library(dplyr)
+
+combined_data_avg_SE_15 <- combined_data_avg_SE_15 %>% 
+  filter(event_code == "flanker_start")
+  
+
+```
+plot EDA
+
+```{r}
+
+# plot 
+plot_custom_bar(data = combined_data_avg_SE_15, 
+                x_var = "time_cond", 
+                y_var = "avg_iscr", 
+                fill_var = "shock_cond", 
+                group_var = "shock_cond", 
+                error_var = "se", 
+                title_x = "15 seconds after flanker start", 
+                title_y = "ISCR")
+
+```
+
+
+lmer 
+```{r}
+
+eda_condition_15s <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond  + (1|sub), combined_data_15s)
+anova(eda_condition_15s)
+
+emmeans(eda_condition_15s, pairwise ~ shock_cond)
+emmeans(eda_condition_15s, pairwise ~ time_cond)
+
+# shock_cond           ***
+# time_cond            **  
+
+```
+
+```{r}
+
+## include each condition as a random intercept 
+eda_condition_15s <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond  + (1|sub), combined_data_15s)
+
+
+```
+
+# 30 second epoch 
+```{r}
+
+
+combined_data_30s <- subset(combined_data_30s, select=-c(CDA.Latency, CDA.AmpSum,CDA.Tonic, TTP.nSCR, TTP.Latency, TTP.AmpSum, Global.Mean, Global.MaxDeflection, CDA.ISCR, CDA.PhasicMax )) 
+
+
+combined_data_30s <- combined_data_30s %>%
+  mutate(response = ifelse(CDA.nSCR > 0 & CDA.SCR > 0.02, 1, 0))
+
+subjects <-unique(combined_data_30s$sub)
+results <- data.frame(sub = integer(), has_valid_responses = logical())
+#~84 trials per subject 10% = 8.4
+for (subj in subjects) {
+  subj_data <- combined_data_30s %>%
+    filter(sub == subj)
+  valid_responses <- sum(subj_data$response)
+  has_valid <- valid_responses >= 8
+  results <- rbind(results, data.frame(sub = subj, has_valid_responses = has_valid))
+}
+print(results)
+
+
+# remove non-responders and strange runs 
+combined_data_30s <- combined_data_30s %>% 
+  filter(sub != 58)
+
+combined_data_30s <- combined_data_30s %>%
+  filter(!(sub == 60 & run %in% c(7, 8, 9)))
+
+ 
+
+### remove EDA outliers:
+ 
+avg_30s <- combined_data_30s %>%
+    group_by(sub, time_cond, shock_cond, event_code) %>%
+    dplyr::summarise(avg_iscr = mean(ISCR_sqPlus1), .groups = 'drop') %>%as.data.frame()
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+`rename` <- plyr::rename
+
+combined_data_avg_SE_30 <- summarySEwithin(data=avg_30s, measurevar ='avg_iscr', betweenvars=NULL, withinvars=c( 'time_cond', 'shock_cond', 'event_code'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+library(dplyr)
+ 
+combined_data_avg_SE_30 <- combined_data_avg_SE_30 %>%
+  filter(event_code == "flanker_start")
+
+ 
+```
+
+ 
+```{r}
+ 
+find_outliers(combined_data_30s,"ISCR_sqPlus1")
+
+hist(combined_data_30s$ISCR_sqPlus1)
+combined_data_30s <- combined_data_30s %>% 
+  filter(ISCR_sqPlus1 <= 7.9) 
+
+hist(combined_data_30s$ISCR_sqPlus1)
+
+
+```
+
+
+## plot the eda 
+```{r}
+ 
+figs <- "/Users/nadezhdabarbashova/Documents/second year paper /new_figs"
+
+### Use this plot 
+
+palette <- c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591") 
+  
+custom_colors <- c("stim" = "#FFB90F", "shock" = "#FF7F00")  # colors
+custom_labels <- c("stim" = "Mild", "shock" = "Unpleasant")  # colors
+
+
+ggplot(combined_data_avg_SE_30, aes(x = time_cond, y = avg_iscr, fill = shock_cond, group = shock_cond)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, 
+           color = "black") + # size = 0.1 
+  geom_errorbar(aes(ymin = avg_iscr - se , ymax = avg_iscr + se), 
+                position = position_dodge(width = 0.75), size = 0.3,
+                width = 0.2, color = 'black') +
+  labs(x = "Temporal Condition", 
+       y = "ISCR",
+       title = "Mean ISCR by Shock Condition and Threat Proximity", 
+       fill = "Shock Condition") +
+  theme_classic() +
+   scale_x_discrete(labels = time_cond_labels) + 
+  theme(axis.title.x = element_text(size = 12), 
+        axis.title.y = element_text(size = 12),
+        axis.text.x = element_text(size = 10, angle = 0, hjust = 0.5),  # Horizontal labels
+        axis.text.y = element_text(size = 10),
+        legend.position = "right") + 
+  scale_fill_manual(values = custom_colors, labels = custom_labels) +   
+  coord_cartesian(ylim = c(2.5, 3.6)) + 
+  theme_minimal() 
+ 
+
+ggsave(
+  filename = file.path(figs, "mean_ISCR_by_condition.png"),
+  plot = last_plot(),           
+  dpi = 600,                   
+  width = 8, height = 6,       
+  units = "in"
+) 
+
+
+```
+
+
+### lmer
+```{r}
+
+# 
+eda_flanker <- combined_data_30s %>%
+  filter(event_code != "countdown_start")
+
+# omnibus lmer 
+# Main effects and interaction of shock condition and time_condition 
+eda_condition_30s <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond + (1|sub), eda_flanker)
+anova(eda_condition_30s)
+
+emmeans(eda_condition_30s, pairwise~shock_cond)
+emmeans(eda_condition_30s, pairwise~time_cond)
+ 
+# mixed effects need repeated measures 
+eda_run <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond * run + (shock_cond * time_cond|sub), eda_flanker)
+anova(eda_run)
+
+#
+eda_flanker_run1 <- eda_flanker[eda_flanker$run %in% c(1, 2, 3, 4, 5),]
+eda_run1 <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond + (1|sub), eda_flanker_run1)
+anova(eda_run1)
+
+# emmeans only tells is pairwise comparison - nothing about main effect or interaction 
+emmeans(eda_run, pairwise ~ shock_cond * time_cond)
+
+#stim distal - shock proximal    -0.3125 0.1000 656  -3.124  0.0100
+# shock proximal EDA is higher than stim distal  
+emmeans(eda_condition, pairwise~shock_cond)
+
+
+# make time a main effect - not interaction  
+eda_run2 <- lmer(ISCR_sqPlus1 ~ shock_cond * run + time_cond  + (1|sub), eda_flanker)
+anova(eda_run2)
+
+eda_run3 <- lmer(ISCR_sqPlus1 ~ shock_cond + time_cond * run + (1|sub), eda_flanker)
+anova(eda_run3) 
+ 
+
+
+```
+
+```{r}
+
+combined_data_30_flanker <- combined_data_30s %>%
+  filter(event_code == "flanker_start")
+
+# Main effects and interaction of shock condition and time_condition 
+eda_flanker_30s <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond  + (1|sub), combined_data_30_flanker)
+ anova(eda_flanker_30s)
+
+# shock_cond **
+
+
+```
+
+```{r}
+
+combined_data_30_countdown <- combined_data_30s %>%
+  filter(event_code == "countdown_start") 
+
+eda_countdown_30s <- lmer(ISCR_sqPlus1 ~ shock_cond * time_cond  + (1|sub), combined_data_30_countdown)
+ 
+anova(eda_countdown_30s)
+
+# time_cond ***
+# shock_cond * 
+
+# post-hoc tests 
+
+```
+
+
+# EDA spanning all runs
+Look at participants best countdowns / trials - see if skin conductance on those specific trials was different / higher 
+
+```{r}
+
+# facet wrap 
+
+combined_data_byRun <- combined_data_30s  %>%
+    group_by(sub, time_cond, shock_cond, event_code, run) %>%
+  arrange(sub, run) %>%
+    dplyr::summarise(avg_iscr = mean(ISCR_sqPlus1), .groups = 'drop') %>% as.data.frame()
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+`rename` <- plyr::rename
+
+combined_data_avg_SE <- summarySEwithin(data=combined_data_byRun, measurevar ='avg_iscr', betweenvars=NULL, withinvars=c('shock_cond', 'run', 'event_code'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+
+library(dplyr)
+
+combined_data_avg_SE <- combined_data_avg_SE %>%
+  filter(event_code == "flanker_start")
+
+####
+# palette = c("#ddf2ef", "#b9dcd7", "#ffddfa", "#e3b0db", "#dce7e5", "#bed3cf", "#f0deed", "#dac2d6")
+
+palette = c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591")
+
+ggplot(combined_data_avg_SE, aes(x = run, y = avg_iscr, fill = shock_cond, group = shock_cond)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, color="black", size = 0.1) +
+  geom_errorbar(aes(ymin = avg_iscr - se, ymax = avg_iscr + se), 
+                position = position_dodge(width = 0.75), size = 0.5, width = 0.2, color = 'black') +
+  labs(x = "Over Runs", y = "ISCR") +
+  theme_classic() +  
+  theme(axis.title.x = element_text(size = 12), axis.title.y = element_text(size = 12),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1), axis.text.y = element_text(size = 10),
+    legend.position = "right") +  
+  scale_fill_manual(values = palette)  
+
+
+```
+# EDA spanning all countdowns
+
+```{r}
+
+
+combined_data_byInterval <- combined_data_30s  %>%
+  filter(event_code != "countdown_start") %>% 
+    group_by(sub, interval, time_cond, shock_cond, event_code) %>%
+  arrange(sub, interval) %>%
+    dplyr::summarise(avg_iscr = mean(ISCR_sqPlus1), .groups = 'drop') %>% as.data.frame()
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+`rename` <- plyr::rename
+
+Eda_interval_SE <- summarySEwithin(data=combined_data_byInterval, measurevar ='avg_iscr', betweenvars=NULL, withinvars=c('shock_cond', 'interval'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+
+library(dplyr)
+
+Eda_interval_SE <- Eda_interval_SE %>%
+  dplyr::mutate(interval = as.numeric(as.character(interval))) %>%
+  dplyr::filter(interval != 0)
+
+
+```
+
+```{r}
+
+Eda_interval_SE$interval <- as.factor(Eda_interval_SE$interval)
+
+palette = c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591")
+
+
+ggplot(Eda_interval_SE, aes(x = interval, y = avg_iscr, fill = shock_cond, group = shock_cond)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, color="black", size = 0.1) +
+    scale_fill_manual(values = palette, labels = custom_labels) + 
+  geom_errorbar(aes(ymin = avg_iscr - se, ymax = avg_iscr + se), 
+                position = position_dodge(width = 0.75), size = 0.5, width = 0.2, color = 'black') +
+   geom_errorbar(aes(ymin = avg_iscr - se , ymax = avg_iscr + se), 
+                position = position_dodge(width = 0.75), size = 0.3,
+                width = 0.2, color = 'black') +
+  labs(x = "Countdown", 
+       y = "ISCR",
+       fill = "Shock Condition") +
+  #scale_x_discrete(xlim = c(0,36), breaks = seq(1, 36,))
+  theme_classic() +
+   scale_x_discrete(labels = time_cond_labels) + 
+  theme(axis.title.x = element_text(size = 12), 
+        axis.title.y = element_text(size = 12),
+        axis.text.x = element_text(size = 10, angle = 0, hjust = 0.5),  # Horizontal labels
+        axis.text.y = element_text(size = 10),
+        legend.position = "right") 
+
+
+
+```
+
+
+
+
+# Heart Rate 
+```{r}
+
+# import data 
+#import everything /Users/nadezhdabarbashova/Desktop/fmcc_timing/neurokit/74_EKG_events_run9.csv 
+
+# Define the directory where the files are stored
+root_dir <- "/Users/nadezhdabarbashova/Desktop/fmcc_timing/neurokit/"
+
+# Define lists of subjects and runs
+sub_list <- subject_ids 
+run_list <- 1:9               # Example run list (assuming runs 1 to 10)
+
+# Load necessary package
+library(dplyr)
+
+# Initialize an empty list to store data frames
+df_list <- list()
+
+# Loop through subjects and runs to find matching files
+for (sub in sub_list) {
+  for (run in run_list) {
+    # Construct the expected filename
+    filename <- paste0(sub, "_EKG_events_run", run, ".csv")
+    
+    # Construct the full file path
+    file_path <- file.path(root_dir, filename)
+    
+    # Check if the file exists
+    if (file.exists(file_path)) {
+      # Read the CSV file
+      temp_df <- read.csv(file_path)
+    
+      # Add subject and run as new columns (mutate)
+      temp_df <- temp_df %>%
+        mutate(subject = sub, run = run)  # Add columns before rbind
+
+      # Store in list
+      df_list[[paste0("sub", sub, "_run", run)]] <- temp_df
+    }
+  }
+}
+
+# Combine all data frames into one
+combined_df <- bind_rows(df_list)  # Equivalent to do.call(rbind, df_list)
+
+# Print the first few rows
+print(head(combined_df))
+hr_df <- combined_df 
+ 
+check <- hr_df %>%
+  group_by(subject, run) %>%
+  summarize(mean_hr = mean(ECG_Rate))
+
+
+```
+
+# Heart Rate - Baseline Corrected 
+```{r}
+
+
+ # Define lists of subjects and runs
+sub_list <- subject_ids  # Ensure this is correctly defined
+run_list <- 1:9         
+num_list <- 1:4  # Corresponds to the countdown number
+
+# Load necessary package
+library(dplyr)
+
+# Initialize an empty list to store data frames
+df_list <- list()
+
+# Loop through subjects, runs, and countdown numbers to find matching files
+for (sub in sub_list) {
+  for (run in run_list) {
+    for (num in num_list) { 
+     
+      # Construct the expected filename based on correct format
+      filename <- paste0(sub, "_EKG_epoch_Flanker_run", run, "_", num, ".csv")
+
+      # Construct the full file path
+      file_path <- file.path(root_dir, filename)
+
+      # Debug: Check if the file exists
+      if (file.exists(file_path)) {
+        print(paste("✅ Found file:", file_path))  # Debugging message
+        
+        # Read the CSV file
+        temp_df <- read.csv(file_path)
+
+        # Add subject, run, and countdown number as new columns
+        temp_df <- temp_df %>%
+          mutate(subject = sub, run = run, countdownNum = num)
+
+        # Store in list
+        df_list[[paste0("sub", sub, "_run", run, "_num", num)]] <- temp_df
+      } else {
+        print(paste("❌ File NOT found:", file_path))  # Debugging message
+      }
+    }
+  }
+}
+
+# Check if any data frames were added
+if (length(df_list) == 0) {
+  print("🚨 No files were found! Check the file paths and naming convention.")
+} else {
+  print(paste("✅ Successfully loaded", length(df_list), "files into df_list."))
+}
+
+# Combine all data frames into one
+if (length(df_list) > 0) {
+  full_df <- bind_rows(df_list)
+  print("✅ Successfully created full_df!")
+  print(dim(full_df))  # Print dimensions of final df
+} else {
+  full_df <- data.frame()  # Return an empty df if no files were found
+}
+
+hr_corrected <- full_df
+
+
+hr_corrected <- hr_corrected %>%
+  dplyr::rename(sub = subject, 
+              time_cond  = distance_type, 
+              shock_cond = threat_type,
+              full_cond = event_type,
+              intervalNum = countdownNum)
+
+
+hr_corrected_time <- hr_corrected %>%
+  group_by(sub, run) %>%
+  summarize(mean_hr = mean(ECG_Baseline_Corrected))   
+
+
+hr_corrected <- hr_corrected %>%
+ mutate(event = case_when(
+    str_detect(full_cond, "flanker") ~ "flanker",
+    str_detect(full_cond, "countdown") ~ "countdown",
+    TRUE ~ NA_character_  # If neither word is found, assign NA
+  ))
+
+
+hr_corrected <- hr_corrected %>%
+  mutate(interval = (interval = ((run - 1) * 4) + intervalNum))
+
+
+#hr_corrected <- hr_corrected %>%
+  #mutate(intervalNum = na_if(intervalNum, 0)) %>%
+  #fill(intervalNum, .direction = "up")
+
+ 
+```
+
+
+
+```{r}
+
+hr_by_time <- hr_corrected %>%
+  group_by(sub, run) %>%
+  summarize(mean_hr = mean(ECG_Rate))   
+
+hr_df <- hr_df %>%
+  dplyr::rename(sub = subject, 
+              time_cond  = distance_type, 
+              shock_cond = threat_type,
+              full_cond = event_type)
+
+hr_df <- hr_df %>%
+ mutate(event = case_when(
+    str_detect(full_cond, "flanker") ~ "flanker",
+    str_detect(full_cond, "countdown") ~ "countdown",
+    TRUE ~ NA_character_  # If neither word is found, assign NA
+  ))
+
+ 
+hr_df <- hr_df %>%
+  mutate(intervalNum = na_if(intervalNum, 0)) %>%
+  fill(intervalNum, .direction = "up")
+
+head(hr_df)
+
+# downsample 
+ 
+# hr_df_downsampled <- hr_df %>%
+#  slice(seq(1, n(), by = 20))
+
+rle_values <- rle(hr_df$intervalNum)
+
+# Create a logical index to mark which sequences occur at least 3 times in a row
+keep_values <- inverse.rle(list(
+  lengths = rle_values$lengths, 
+  values = rle_values$lengths >= 3
+))
+
+# Filter out rows that belong to sequences of less than 3 consecutive occurrences
+#hr_df <- hr_df[keep_values, ]
+
+# Identify which values have at least 3 consecutive occurrences
+#keep_seq <- rep(rle_values$lengths >= 3, times = rle_values$lengths)
+
+# Ensure filtering removes standalone values
+#hr_df <- hr_df[keep_seq, , drop = FALSE]
+
+#hr_df <- hr_df[-1, ]
+#hr_final <- hr_df_filtered
+
+
+```
+
+# combine EDA + HR
+```{r}
+
+
+hr_df <- hr_df %>%
+  dplyr::rename(RunInternvalNum = intervalNum )
+
+# Process hr_df
+ 
+hr_df <- hr_df %>%
+  mutate(interval = (interval = ((run - 1) * 4) + RunInternvalNum))
+
+unique(hr_df$run)
+unique(hr_df$RunInternvalNum)
+unique(hr_df$interval)
+
+#### use baseline corrected one 
+
+hr_final_clean <- hr_corrected %>% 
+  filter(event != "countdown") %>% 
+  select(sub, event, run, interval, time_cond, shock_cond, ECG_Rate, ECG_Baseline_Corrected) %>%
+  group_by(sub, run, interval, time_cond, shock_cond, event) %>% 
+  summarize(meanECG_raw = mean(ECG_Rate),
+            meanECG_corr = mean(ECG_Baseline_Corrected))
+
+
+
+eda_clean <- combined_data_30s %>% 
+  filter(event_code != "countdown_start") %>% 
+  dplyr::rename(event = event_code) %>%
+  mutate(event = case_when(
+    event == "flanker_start" ~ "flanker",
+    event == "countdown_start" ~ "countdown", 
+    TRUE ~ event
+  ))
+
+eda_clean$shock_cond <- as.factor(eda_clean$shock_cond)
+eda_clean$time_cond <- as.factor(eda_clean$time_cond)
+
+
+eda_clean_check <- eda_clean %>%
+  filter(sub == "49")
+
+hr_check <- hr_final_clean %>%
+  filter(sub == "49")
+
+
+missing_in_eda <- anti_join(hr_final_clean, eda_clean, by = c("sub", "run", "interval", "time_cond", "shock_cond", "event"))
+print(missing_in_eda)
+
+check <- hr_final_clean %>%
+  filter(sub == "67")
+
+
+physio_combined <- left_join(hr_final_clean, eda_clean, by = c("sub", "run", "interval", "time_cond", "shock_cond", "event"))
+ 
+
+```
+
+
+
+# Plot HR 
+```{r}
+#time 
+
+hr_time_all  <- hr_corrected %>%
+  filter(event == "flanker") %>% 
+  group_by(time_cond) %>% 
+  dplyr::summarize(mean_ECG_raw = mean(ECG_Rate, na.rm = TRUE),
+                   mean_ECG_corr = mean(ECG_Baseline_Corrected, na.rm = TRUE))
+
+hr_time <- hr_corrected %>%
+  filter(event == "flanker") %>% 
+  group_by(sub, time_cond, shock_cond) %>% 
+  dplyr::summarize(mean_ECG_raw = mean(ECG_Rate, na.rm = TRUE),
+                   mean_ECG_corr = mean(ECG_Baseline_Corrected, na.rm = TRUE))
+
+                   
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+`rename` <- plyr::rename
+hr_temporal_SE <- summarySEwithin(data = hr_time, measurevar ='mean_ECG_corr', betweenvars=NULL, withinvars=c('time_cond', 'shock_cond'),idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+library(dplyr)
+
+hr_temporal_SE
+
+```
+
+```{r}
+
+palette <- c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591") 
+  
+hr_temporal_SE <- hr_temporal_SE %>%
+  mutate(shock_cond = case_when(
+    shock_cond == "stim" ~ "light_stim",  # Replace with actual condition
+    TRUE ~ as.character(shock_cond)  # Keep existing values if no match
+  ))
+
+
+```
+
+```{r}
+
+### Use this plot 
+
+hr_temporal_SE$time_cond <- factor(hr_temporal_SE$time_cond, levels = c("proximal", "distal"))   
+
+hr_temporal_SE$shock_cond <- factor(hr_temporal_SE$shock_cond, levels = c("shock", "light_stim"))   
+
+### change colors here 
+custom_colors <- c("light_stim" = "#FFB90F", "shock" = "#FF7F00")  # colors
+custom_labels <- c("light_stim" = "Mild", "shock" = "Unpleasant")  # colors
+
+hr_temporal_SE$time_cond <- factor(hr_temporal_SE$time_cond, levels = c("distal", "proximal"))
+ 
+
+ggplot(hr_temporal_SE, 
+       aes(x = time_cond, y = mean_ECG_corr, fill = shock_cond, group = shock_cond)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, 
+           color = "black") +
+  geom_errorbar(aes(ymin = mean_ECG_corr - se, ymax = mean_ECG_corr + se), 
+                position = position_dodge(width = 0.75), size = 0.3,
+                width = 0.2, color = "black") +
+  scale_x_discrete(labels = time_cond_labels) +
+  scale_fill_manual(values = custom_colors, labels = custom_labels, name = "Shock Condition") +
+  labs(
+    title = "Mean Heart Rate by Shock Condition and Threat Proximity",
+    x = "Temporal Condition", 
+    y = "Heart Rate (bpm)",
+    fill = "Shock Condition"
+  ) +
+  # Optional: uncomment to constrain y-axis range
+  # coord_cartesian(ylim = c(74, 78)) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 12), 
+    axis.title.y = element_text(size = 12),
+    axis.text.x = element_text(size = 10, hjust = 0.5),
+    axis.text.y = element_text(size = 10),
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+
+ggsave(
+  filename = file.path(figs, "HR_by_condition.png"),
+  plot = last_plot(),           
+  dpi = 600,                   
+  width = 8, height = 6,       
+  units = "in"
+) 
+
+
+```
+
+### HR spanning all countdowns
+```{r}
+ 
+hr_by_sub <- hr_corrected %>%
+  group_by(sub, interval, time_cond, shock_cond,) %>%
+  arrange(sub, interval) %>%
+  summarize(mean_ecg = mean(ECG_Rate))
+
+
+hr_by_sub_conditions <- hr_corrected %>%
+  group_by(sub, time_cond, shock_cond,) %>%
+  arrange(sub) %>%
+  summarize(mean_ecg = mean(ECG_Rate))
+
+# check intervals 
+hr_by_sub_count <- hr_corrected %>%
+  group_by(sub) %>%  # Group by subject
+  summarize(unique_intervals = n_distinct(interval))
+
+
+```
+
+```{r}
+### baseline corrected 
+hr_by_sub <- hr_corrected %>%
+  group_by(sub, interval, time_cond, shock_cond,) %>%
+  arrange(sub, interval) %>%
+  summarize(mean_ecg = mean(ECG_Baseline_Corrected))
+
+
+hr_by_sub_conditions <- hr_corrected %>%
+  group_by(sub, time_cond, shock_cond,) %>%
+  arrange(sub) %>%
+  summarize(mean_ecg = mean(ECG_Baseline_Corrected))
+
+## check 
+hr_by_sub_count <- hr_corrected %>%
+  group_by(sub) %>%  # Group by subject
+  summarize(unique_intervals = n_distinct(interval))
+
+
+```
+
+
+## by interval 
+```{r}
+
+hr_byInterval <- hr_final  %>%
+  dplyr::filter(event == "flanker") %>%
+    group_by(sub, interval, shock_cond) %>%
+  arrange(sub, interval) %>%
+    dplyr::summarise(mean_ECG = mean(ECG_Rate), .groups = 'drop')  
+
+
+hr_byInterval <- hr_corrected  %>%
+  dplyr::filter(event == "flanker") %>%
+    group_by(sub, interval, shock_cond) %>%
+  arrange(sub, interval) %>%
+    dplyr::summarise(mean_ECG = mean(ECG_Baseline_Corrected), .groups = 'drop')  
+
+
+# detach dplyr 
+detach("package:dplyr", unload = TRUE)
+
+`rename` <- plyr::rename
+
+hr_avg_SE <- summarySEwithin(data= hr_byInterval, measurevar ='mean_ECG', betweenvars=NULL, withinvars=c('shock_cond', 'interval'),
+    idvar='sub', na.rm=FALSE, conf.interval=.95) #.drop=TRUE
+
+library(dplyr)
+
+ 
+ 
+palette = c("#FFB347","#FFD700","#E3A869", "#F5DEB3", "#DAA520", "#FFCC99", "#EEC591")
+
+
+ggplot(hr_avg_SE, aes(x = interval, y = mean_ECG, fill = shock_cond, group = shock_cond)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.75), width = 0.7, color="black", size = 0.1) +
+      # coord_cartesian(ylim = c(70, 90)) + 
+  geom_errorbar(aes(ymin = mean_ECG - se, ymax = mean_ECG + se), 
+                position = position_dodge(width = 0.75), size = 0.5, width = 0.2, color = 'black') +
+  labs(x = "Countdowns", y = "ECG Rate") +
+  theme_classic() +  
+  theme(axis.title.x = element_text(size = 12), axis.title.y = element_text(size = 12),
+    axis.text.x = element_text(size = 10, hjust = 1), axis.text.y = element_text(size = 10),
+    legend.position = "right") +  
+  scale_fill_manual(values = palette)  
+
+
+
+```
+
+## HR variability 
+```{r}
+
+
+
+```
+
+
+## Physio Correlations 
+```{r}
+
+# is HR and EDA correlated? - BY RUN 
+
+eda_by_sub <- combined_data_30s %>%
+  filter(event_code == "flanker_start") %>% 
+  group_by(sub, interval) %>%
+  summarize(mean_eda = mean(ISCR_sqPlus1, na.rm = TRUE)) %>%
+  ungroup()
+
+hr_by_sub <- hr_corrected %>%
+  filter(event == "flanker") %>% 
+  group_by(sub, interval) %>%
+  summarize(mean_hr = mean(ECG_Rate, na.rm = TRUE))
+
+sub_physio <- left_join(eda_by_sub, hr_by_sub, by = c("sub", "interval"))
+
+
+sub_physio <- sub_physio %>%
+  group_by(sub) %>%
+  mutate(
+    mean_eda_z = as.numeric(scale(mean_eda)),
+    mean_hr_z = as.numeric(scale(mean_hr))
+  ) %>%
+  ungroup()
+
+
+
+```
+
+
+
+```{r}
+
+# Compute within-subject correlation
+within_sub_corrs <- sub_physio %>%
+  group_by(sub) %>%
+  summarise(
+    correlation = cor(mean_eda_z, mean_hr_z, use = "complete.obs"),
+    p_value = cor.test(mean_eda_z, mean_hr_z, use = "complete.obs")$p.value
+  )
+ 
+
+ggplot(sub_physio, aes(x = mean_eda_z, y = mean_hr_z)) +
+  geom_point(alpha = 0.5) +  # Scatter points
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +  # Regression line
+  facet_wrap(~ sub) +  # Separate by subject
+  labs(title = "EDA vs. HR Correlations by Participant", x = "Mean EDA", y = "Mean HR") +
+  theme_minimal()
+
+
+
+```
+
+```{r}
+
+# Compute within-subject correlation
+within_sub_corrs <- sub_physio %>%
+  group_by(sub) %>%
+  summarise(
+    correlation = cor(mean_eda_z, mean_hr_z, use = "complete.obs"),
+    p_value = cor.test(mean_eda_z, mean_hr_z, use = "complete.obs")$p.value
+  )
+ 
+
+pooled_correlation <- cor(sub_physio$mean_eda_z, sub_physio$mean_hr_z, use = "complete.obs")
+print(pooled_correlation)
+
+
+
+```
+
+## To Do 
+```{r}
+
+# compare countdown epochs (non flanker task) too 
+
+# compare the "final" 30 seconds - flanker vs countdown - this maps on to subjective anxiety  
+
+#
+
+
+```
+
+
+## plot the correlation plot 
+```{r}
+
+find_outliers(sub_physio, 'mean_hr_z' )
+
+ggplot(sub_physio, aes(x = mean_eda, y = mean_hr)) +
+  geom_point(alpha = 0.5, color = "steelblue") +  # Scatter points
+  geom_smooth(method = "lm", se = TRUE, color = "black") +  # Regression line with confidence interval
+  labs(title = "Correlation Between EDA and HR in each Countdown (0.19)",
+       x = "Mean EDA",
+       y = "Mean HR") +
+  ylim(55, 100) +
+  theme_minimal()
+
+
+
+```
+
+
+```{r}
+
+
+
+
+
+```
+
+
+
+# flanker only  
+```{r}
+
+
+
+
+
+```
+
+

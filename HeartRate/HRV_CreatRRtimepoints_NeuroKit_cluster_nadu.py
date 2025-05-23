@@ -6,18 +6,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
-         "68", "69", "70", "72", "73", "74"]
+# IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+       #   "68", "69", "70", "72", "73", "74"]
 
 # peaks - r peak is the big peak, the imporant one
 
-#IDs = [49]
+IDs = [49]
 runs = [ 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
 
 outdir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/neurokit/"
 
 # plot the heart rate
 figs_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/HR/figs/"
+
 
 # for ID in IDs:
 #     for run in runs:
@@ -109,7 +111,7 @@ for ID in IDs:
             # Find peaks
             peaks, info = nk.ecg_peaks(data_cleaned, sampling_rate=100, correct_artifacts=True)
 
-            # try to merge new cols
+            # merge new cols
             peaks["timepoint"] = data["timepoint"]  # Add time column
             peaks["EVENT"] = data["EVENT"]  # Retain Event Code
             print("Peaks:")
@@ -128,6 +130,53 @@ for ID in IDs:
 
             #Find R peak timepoints
             R = data.loc[info["ECG_R_Peaks"]]["timepoint"].to_list()
+
+            # Step 5: Identify Flanker Start Events (NEW)
+            # ------------------------------
+            flanker_events_df = data[data["EVENT"].isin(flanker_start_events)]  # Select only flanker start events
+            event_indices = flanker_events_df.index.tolist()  # Get indices of flanker events
+
+            # ------------------------------
+            # Step 6: Convert Event Indices to Time (NEW)
+            # ------------------------------
+            sampling_rate = 100  # Adjust based on actual data
+            event_timestamps = [idx / sampling_rate for idx in event_indices]  # Convert index to seconds
+
+            # ------------------------------
+            # Step 7: Create a DataFrame for Selected Events (NEW)
+            # ------------------------------
+            events_df = pd.DataFrame({
+                "onset": event_timestamps,
+                "condition": flanker_events_df["EVENT"].values
+            })
+
+            # ------------------------------
+            # Step 8: Create 30-Second Epochs for Flanker Start Events (NEW)
+            # ------------------------------
+            epochs = nk.epochs_create(
+                data=data,
+                events=event_indices,  # Use only flanker start event indices
+                sampling_rate=sampling_rate,
+                epochs_start=0,  # Start at event onset
+                epochs_end=30,  # Capture 30 seconds after the event
+                event_labels=events_df["condition"].tolist(),
+                baseline_correction=True  # Normalize using baseline correction
+            )
+
+            # ------------------------------
+            # Step 9: Save Each Epoch Separately (NEW)
+            # ------------------------------
+            for event_label, epoch_df in epochs.items():
+                epoch_filename = os.path.join(outdir, f"{ID}_EKG_epoch_FlankerStart_{event_label}_run{run}.csv")
+                epoch_df.to_csv(epoch_filename, index=False)
+                print(f"Saved epoch: {epoch_filename}")
+
+            # ------------------------------
+            # Step 10: Save Full Processed Dataset
+            # ------------------------------
+            save_filename = os.path.join(outdir, f"{ID}_EKG_ECode_HeartRate{run}.csv")
+            data.to_csv(save_filename, index=False)
+            print(f"Saved processed data: {save_filename}")
 
             # Get the R-R interval and convert to ms.
             # RR = np.diff(info["ECG_R_Peaks"])*10
@@ -156,28 +205,10 @@ for ID in IDs:
                     EventCodeTimePoint.append(info["ECG_R_Peaks"][i])
 
 
+
             #Make a dataframe and save
-            df = pd.DataFrame({"R": R, "EventCode": EventCode, "EventCodeTimePoint" : EventCodeTimePoint})
+            #df = pd.DataFrame({"R": R, "EventCode": EventCode, "EventCodeTimePoint" : EventCodeTimePoint})
 
-            # remove event code when appeared twice in the same trial
-
-            # indexli = []
-            # for k in range(len(df)):
-            #     if k < len(df) - 1:
-            #         Code1 = df.loc[k]['EventCode']
-            #         Code2 = df.loc[k+1]['EventCode']
-            #         if Code1>0 and Code2>0:
-            #             indexli.append(k+1)
-            # for ind in indexli:
-            #     df.loc[ind, "EventCode"] = 0
-            # #Add the TrialNum column
-            # df['TrialNum'] = df['EventCode']
-            # mask1=df['TrialNum'].apply(lambda x: 1 if x > 0 else 0).astype('bool')
-            # list1 = list(range(1, 33))
-            # df.loc[mask1, 'TrialNum'] = list1
-
-            #save = ID + "_encodingEKG_ECode_" + run + ".csv"
-            #df.to_csv(os.path.join(outdir, save), header=None, index=None, sep=',')
 
         except:
             print("Part of the loop was not completed: " + ID + " run: " + run)
