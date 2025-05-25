@@ -1,4 +1,6 @@
 ReadMe:
+Also Located here: https://docs.google.com/document/d/1hfkKuHdc5htsAZjkRZWYzMZev2CSRcb4WBH9agrphzE/edit?tab=t.0#heading=h.v4r9sowhak48 
+
 
 Nadu's Physio Pipeline
 This ReadMe has an overview of steps to follow to get EDA and heart rate data from an acq file after using AqKnowledge to collect data. 
@@ -91,12 +93,9 @@ This is very similar to step 2 above, but instead of processing the EDA data it 
 The 3 columns will not be labelled with a header, but they correspond to this structure: 
 timepoint    ECG     EVENT
 
-
 ### Step 3: HRV_addEventcodes_Nadu.py
 This script adds event codes to the data 
 
-### Step 4:  baseline_correct_epoch 
-Baseline correction happens here 
 
 ### Step 5: Physio_analyses_Nadu.rmd 
 Same as above. Lower blocks process heart rate data. 
