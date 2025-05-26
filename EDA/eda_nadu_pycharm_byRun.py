@@ -18,17 +18,19 @@ import numpy as np
 
 #####  INPUT DIRECTORY
 #raw data - the data should already be in csv format. Each row represents a sample (2000 per second)
-rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
+# rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
+
+rawdata = "/Users/nadezhdabarbashova/Documents/fmcc_heart_rate/raw_csv"
 
 #####  OUTPUT DIRECTORY
 #save directory - processed event code timing files go here
-save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
-#IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
-#            "68", "69", "70", "72", "73", "74"]
+# save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
+ 
+save_dir = "/Users/nadezhdabarbashova/Documents/fmcc_EDA/timing_files/"
 
-IDs = ["76", "78", "81", "82", "84", "85", "86", "87",
-           "88", "89", "91", "93", "98", "99", "100", "103",
-            "104", "107"]
+IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+           "68", "69", "70", "72", "73", "74", "76", "78", "81", "82", "84", "85", "87",
+           "88", "89", "91", "93", "98", "99", "100", "104", "107", "109", "110"]
 
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
@@ -52,8 +54,13 @@ for ID in IDs:
         print("Starting run num:", run)
         subject.append(ID) #subject list
         runli.append(run)  #run list - in the end you have info to make a spreadsheet
-        current_dir = rawdata + "/" + ID
+        # construct the sub directory where the input is located for each subject 
+        current_dir = rawdata + "/" + "sub" + str(ID) 
+
+        # construct the file name for each subject and each run 
         current_file = "fmcc_sub" + ID + "_task_000" + str(run) + ".csv"
+        
+        # combine into a full path and read the path 
         path = os.path.join(current_dir, current_file)
 
         # create a temporary df to start with
@@ -233,9 +240,6 @@ for ID in IDs:
         # Reorder columns
         encoding_downsample = encoding_downsample[['timepoint', 'EDA', 'EVENT']]
 
-        save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
-        # Loop through each dataset in data_dict
-
         # Create a unique filename for each dataset
         savefile = f"{ID}_run{run + 1}.txt"
 
@@ -312,13 +316,13 @@ for ID in IDs:
             # Set EVENT to 0 where it matches any of the countdown end codes
             encoding_downsample.loc[encoding_downsample['EVENT'].isin(countdown_end_codes), 'EVENT'] = 0
 
-            test_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/"
-            # Ensure the test directory exists
-            if not os.path.exists(test_dir):
-                os.makedirs(test_dir)  # Create the directory if it doesn’t exist
+            # test_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/"
+            # # Ensure the test directory exists
+            # if not os.path.exists(test_dir):
+            #     os.makedirs(test_dir)  # Create the directory if it doesn’t exist
 
-            save = os.path.join(test_dir, savefile)
-            #print(f"Full file path: {save}")
+            save = os.path.join(save_dir, savefile)
+            print(f"Full file path: {save}")
 
             # Try saving the file to the test directory
             encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='w')

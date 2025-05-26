@@ -19,31 +19,25 @@ import numpy as np
 ### Delete Junk Code that is commented out 
 
 #raw data - the data should already be in csv format. Each row represents a sample (sampling rate 2000 per second)
-rawdata = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/fmcc_csv"
+rawdata = "/Users/nadezhdabarbashova/Documents/fmcc_heart_rate/raw_csv" 
 
-#save directory - processed event code timing files go here - change to DropBox 
-save_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/HR/"
+#save directory - processed event code timing files go here 
+save_dir = "/Users/nadezhdabarbashova/Documents/fmcc_heart_rate/timing_files/"
 
-#IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
-#           "68", "69", "70", "72", "73", "74"]
+IDs = ["49", "50", "51", "52", "54", "55", "56", "57", "58", "61", "62", "63", "65", "67",
+           "68", "69", "70", "72", "73", "74", "76", "78", "81", "82", "84", "85", "87",
+           "88", "89", "91", "93", "98", "99", "100", "104", "107", "109", "110"]
 
-
-IDs = ["76", "78", "81", "82", "84", "85", "86", "87",
-           "88", "89", "91", "93", "98", "99", "100", "103",
-            "104", "107"]
-
-IDs = ["88", "89"]
 # We need to record the start event code conditions for runs so that it can be used for the other analysis
 subject = []
 runli = []
 startcode = []
 runs = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
-out_dir = "/Users/nadezhdabarbashova/Desktop/fmcc_timing/HR/"
 
 # Ensure the output directory exists
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)  # Create the directory if it doesn’t exist
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)  # Create the directory if it doesn’t exist
 
 
 # Define a function that finds the index of "not none" elements in the list
@@ -58,8 +52,14 @@ for ID in IDs:
         print("Starting run num:", run)
         subject.append(ID) #subject list
         runli.append(run)  #run list - in the end you have info to make a spreadsheet
-        current_dir = rawdata + "/" + ID
+
+        # construct the sub directory where the input is located for each subject 
+        current_dir = rawdata + "/" + "sub" + str(ID) 
+
+        # construct the file name for each subject and each run 
         current_file = "fmcc_sub" + ID + "_task_000" + str(run) + ".csv"
+        
+        # combine into a full path and read the path 
         path = os.path.join(current_dir, current_file)
 
         # create a temporary df to start with
@@ -68,7 +68,7 @@ for ID in IDs:
 
         # Current columns = EDA, CORR, ECG, Feedback, Stim, ch1-8
         # Let's remove the Corr & Feedback columns
-        print(f"Number of columns: {len(tmp_df.columns)}")
+        #print(f"Number of columns: {len(tmp_df.columns)}")
 
         data = (tmp_df  # make a copy of the df and...
                 .drop(index=0)  # remove the first row
@@ -76,7 +76,7 @@ for ID in IDs:
                 .reset_index(drop=True))  # reset row index
         #data.head() # see first few rows
         #print(data)  # take a look at the original data
-        print(f"Number of columns: {len(data.columns)}")
+        #print(f"Number of columns: {len(data.columns)}")
 
         # renaming the channels from 0 - 7 instead of 1 - 8 based on Nadu's event code convention
         data.columns = ['EDA', 'ECG', 'Stim', 'ch0', 'ch1', 'ch2', 'ch3', 'ch4', 'ch5', 'ch6',
@@ -84,8 +84,6 @@ for ID in IDs:
 
         # add a column and label the events
         # create new column - EVENT - fill it with values - flanker start, flanker end, countdown end
-        
-        #### ok problem is that data (whole df) is used here. maybe move it up? label everything, then cut it up,
         print("data shape before creating conditions:")
         print(data.shape)
         #print(data.head())
@@ -160,7 +158,7 @@ for ID in IDs:
              (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5) & (data['ch7'] == 0))
         ]
 
-        ### TO DO: these have to be numbers - LedaLab needs numbers
+        ## Conditions need to be numbers, not strings. LedaLab (EDA) needs numbers - stay consistent with HR and EDA
         # Remember which number means what - keep it documented
 
         # example = values = [7, 1, 2, 3, 4, 5, 6]
@@ -190,13 +188,6 @@ for ID in IDs:
         
         #print(f"Number of conditions: {len(event_conditions)}")
         #print(f"Number of values: {len(condition_values)}")
-
-        #print("data shape before labelling:")
-        #print(data.shape)
-
-        # data['condition'] = np.select(condition_conditions, condition_values, default='none')
-        #data['EVENT'] = np.select(event_conditions, condition_values, default='none')
-
         data['EVENT'] = np.select(event_conditions, condition_values)
 
 
@@ -223,23 +214,22 @@ for ID in IDs:
 
         # data is the df that will later be cut up (into data_rest)
         data['start'] = np.select(conditions, values, default="none")
-            #              ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 5)& (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0 ) & (data['ch7'] == 0 )) | #distal shock flanker start
-            #              ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 5) & (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 0 ) & (data['ch7'] == 0 )) | #proximal shock flanker start
-            #              ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 5) & (data['ch6'] == 0) & (data['ch7'] == 0 )) | #distal stim flanker start
-            #              ((data['ch0'] == 0) & (data['ch1'] == 0) & (data['ch2'] == 0) & (data['ch3'] == 0) & (data['ch4'] == 0) & (data['ch5'] == 0) & (data['ch6'] == 5 ) & (data['ch7'] == 0 ))  #proximal stim flanker start
-
-        # all we need is eda, event and index
+ 
+        # all we need is ECG, event and index 
         data_save = data[['ECG', "EVENT"]]
+
+        # Downsample: save every 20th row 
         encoding_downsample = data_save[::20].copy()
         encoding_downsample.reset_index(inplace=True, drop=True)
 
-        # Add timepoint column
+        # Add timepoint column - the index is already keeping track of time (each row is a timepoint)
+        # We downsampled from 2000hz to 100hz so now there are 100 rows per second. 
+        # Index * 0.01 transforms row number into seconds 
         encoding_downsample['timepoint'] = 0.01 * encoding_downsample.index
 
         # Reorder columns
         encoding_downsample = encoding_downsample[['timepoint', 'ECG', 'EVENT']]
 
-        save_dir = "/Users/nadezhdabarbashova/Library/CloudStorage/Dropbox/LEAP_Neuro_Lab/researchProjects/nadu/fmcc/data/fmcc_w25/acq_data/timing/"
         # Loop through each dataset in data_dict
 
         # Create a unique filename for each dataset
@@ -249,6 +239,7 @@ for ID in IDs:
         save_path = os.path.join(save_dir, savefile)
         print(save_path)
 
+        # remove 
         indexli = []
         for k in range(1):
             Code1 = encoding_downsample.loc[k, 'EVENT']
@@ -274,7 +265,10 @@ for ID in IDs:
             #save = os.path.join(save_dir, savefile)
             #print(f"Full file path: {os.path.join(save_dir, savefile)}")
 
-            # Track last seen event codes and their row indices
+
+            # code below is specific to fmcc - start code appears multiple times. 
+            # The code below removes the multiple occurances of it 
+            # # Track last seen event codes and their row indices
             recent_events = {}
 
             # Define window size (59 seconds)
@@ -299,31 +293,12 @@ for ID in IDs:
             # Get indices where end codes appear
             end_indices = encoding_downsample[encoding_downsample['EVENT'].isin(end_codes)].index
 
-            # Define window size (5 seconds = 500 rows)
-            # window_size = 500
+            # create a filepath for each txt file 
+            save = os.path.join(save_dir, savefile)
 
-            # Loop through each end code index
-            #for end_idx in end_indices:
-                # Look back 500 rows (ensuring we don't go out of bounds)
-                #start_idx = max(0, end_idx - window_size)
-
-                # Find flanker codes within this range and set them to 0
-                #encoding_downsample.loc[start_idx:end_idx, 'EVENT'] = encoding_downsample.loc[start_idx:end_idx,
-                #                                                      'EVENT'].apply(
-                #    lambda x: 0 if x in flanker_codes else x
-               # )
-
-            # Define the countdown end codes that need to be turned to 0 - remove them to make it easier in LedaLab
-            #countdown_end_codes = {2, 4, 6, 8, 10, 12, 14, 16}
-            # Set EVENT to 0 where it matches any of the countdown end codes
-            #encoding_downsample.loc[encoding_downsample['EVENT'].isin(countdown_end_codes), 'EVENT'] = 0
-
-            save = os.path.join(out_dir, savefile)
-            #print(f"Full file path: {save}")
-
-            # Try saving the file to the test directory
+            # save the output as a txt file  
             encoding_downsample.to_csv(save, header=None, index=None, sep='\t', mode='w')
-            print("\n✅ Number of rows per EVENT code:")
+            print("\n Number of rows per EVENT code:")
             print(encoding_downsample["EVENT"].value_counts())
 
             # Check if the file exists immediately after saving
